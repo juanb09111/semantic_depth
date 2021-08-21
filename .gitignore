@@ -1,0 +1,15 @@
+
+results/
+vscode/
+res/
+**/*.pth
+**/*.pkl
+**/*.png
+**/*.jpg
+*.pth
+*.pkl
+*.json
+*.txt
+**/__pycache__
+*.ipynb
+*.avi

@@ -1,0 +1,1 @@
+DEVICE = None #No need to assign manually

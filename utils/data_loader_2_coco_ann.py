@@ -18,7 +18,7 @@ def data_loader_2_coco_ann(data_loader_val_filename, coco_ann_json):
         "images": [],
         "annotations": []
     }
-    for _, anns, _, _, _, _, _, _ in data_loader_val:
+    for _, anns, _, _, _, _, _, _, _ in data_loader_val:
 
 
         for idx, _ in enumerate(anns):

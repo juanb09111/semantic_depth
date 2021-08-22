@@ -126,16 +126,17 @@ def __log_validation_results(trainer_engine):
 
     rmse, rgb_sample, sparse_depth_gt_sample, sparse_depth_gt_full, out_depth = eval_depth(model, data_loader_val, weights_path)
     sys.stdout = open(train_res_file, 'a+')
-
+    
     writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
     writer.add_scalar("rmse/train/epoch", rmse, state_epoch)
 
     # write images
+    sparse_depth_gt_sample = sparse_depth_gt_sample.squeeze_(0)
     sparse_depth_gt_sample = sparse_depth_gt_sample.cpu().numpy()/255
     # sparse_depth_gt_sample = np.reshape(sparse_depth_gt_sample, (-1, config_kitti.CROP_OUTPUT_SIZE[0], config_kitti.CROP_OUTPUT_SIZE[1], 1))
     out_depth_numpy = out_depth.cpu().numpy()/255
     # out_depth_numpy = np.reshape(out_depth_numpy, (-1, config_kitti.CROP_OUTPUT_SIZE[0], config_kitti.CROP_OUTPUT_SIZE[1], 1))
-    sparse_depth_gt_full = sparse_depth_gt_sample.squeeze_(1).cpu().numpy()/255
+    sparse_depth_gt_full = sparse_depth_gt_full.cpu().numpy()/255
 
     writer.add_image("eval/src_img", rgb_sample, state_epoch, dataformats="CHW")
     writer.add_image("eval/gt_full", sparse_depth_gt_full, state_epoch, dataformats="HW")

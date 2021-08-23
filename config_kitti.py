@@ -3,7 +3,7 @@ BATCH_SIZE = 1
 
 # MODEL =  "EfusionPS_V3_depth" 
 MODEL = "FuseNet"
-MODEL_WEIGHTS_FILENAME_PREFIX = "EfusionPS_V3_depth"
+CHECKPOINT = "tmp/models/FuseNet_loss_0.42496299164789214.pth"
 
 BACKBONE = "resnet50" # This is the only one available at the moment
 BACKBONE_OUT_CHANNELS = 256

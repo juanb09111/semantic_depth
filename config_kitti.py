@@ -2,8 +2,9 @@
 BATCH_SIZE = 1
 
 # MODEL =  "EfusionPS_V3_depth" 
-MODEL = "FuseNet"
-CHECKPOINT = "tmp/models/FuseNet_loss_0.42496299164789214.pth"
+MODEL = "SemsegNet"
+# CHECKPOINT = "tmp/models/FuseNet_loss_0.42496299164789214.pth"
+CHECKPOINT = None
 
 BACKBONE = "resnet50" # This is the only one available at the moment
 BACKBONE_OUT_CHANNELS = 256
@@ -43,7 +44,7 @@ MAX_EPOCHS = 100
 MAX_TRAINING_SAMPLES = None
 VAL_SIZE = 0.20 #PERCENTAGE
 # If USE_PREEXISTING_DATA_LOADERS is True new data_loaders will not be written
-USE_PREEXISTING_DATA_LOADERS = False
+USE_PREEXISTING_DATA_LOADERS = True
 DATA_LOADER_TRAIN_FILANME = "tmp/data_loaders/vkitti_data_loader_train_all_samples.pth"
 DATA_LOADER_VAL_FILENAME = "tmp/data_loaders/vkitti_data_loader_val_all_samples.pth"
 

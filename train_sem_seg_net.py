@@ -11,7 +11,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from utils.get_vkitti_dataset_full import get_dataloaders
 
 from utils.tensorize_batch import tensorize_batch
-from uitils.convert_tensor_to_RGB import convert_tensor_to_RGB
+from utils.convert_tensor_to_RGB import convert_tensor_to_RGB
 
 from utils.get_stuff_thing_classes import get_stuff_thing_classes
 from utils.data_loader_2_coco_ann import data_loader_2_coco_ann

@@ -2,6 +2,7 @@
 import os.path
 import sys
 from ignite.engine import Events, Engine
+import numpy as np
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 import torch
 import torch.nn as nn
@@ -10,10 +11,11 @@ from torch.optim.lr_scheduler import MultiStepLR
 from utils.get_vkitti_dataset_full import get_dataloaders
 
 from utils.tensorize_batch import tensorize_batch
+from uitils.convert_tensor_to_RGB import convert_tensor_to_RGB
 
 from utils.get_stuff_thing_classes import get_stuff_thing_classes
 from utils.data_loader_2_coco_ann import data_loader_2_coco_ann
-from eval_coco import evaluate
+from eval_sem_seg import eval_sem_seg
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -35,37 +37,22 @@ from datetime import datetime
 writer = SummaryWriter()
 
 
+
+
 def __update_model(trainer_engine, batch):
     model.train()
     optimizer.zero_grad()
 
-    imgs, ann, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, _, _ = batch
+    imgs, ann, _, _, _, _, _, _, _ = batch
 
     imgs = list(img for img in imgs)
-    lidar_fov = list(lid_fov for lid_fov in lidar_fov)
-    masks = list(mask for mask in masks)
-    sparse_depth = list(sd for sd in sparse_depth)
-    k_nn_indices = list(k_nn for k_nn in k_nn_indices)
-    sparse_depth_gt = list(sp_d for sp_d in sparse_depth_gt)
+    imgs = tensorize_batch(imgs, device)
+
     annotations = [{k: v.to(device) for k, v in t.items()}
                    for t in ann]
-
-    imgs = tensorize_batch(imgs, device)
-    lidar_fov = tensorize_batch(lidar_fov, device, dtype=torch.float)
-    masks = tensorize_batch(masks, device, dtype=torch.bool)
-    sparse_depth = tensorize_batch(sparse_depth, device)
-    k_nn_indices = tensorize_batch(k_nn_indices, device, dtype=torch.long)
-    sparse_depth_gt = tensorize_batch(
-        sparse_depth_gt, device, dtype=torch.float)
-
+    
     # print("shape", imgs.shape, sparse_depth.shape, sparse_depth_gt.shape)
-    loss_dict = model(imgs,
-                      sparse_depth,
-                      masks,
-                      lidar_fov,
-                      k_nn_indices,
-                      anns=annotations,
-                      sparse_depth_gt=sparse_depth_gt)
+    loss_dict = model(imgs, anns=annotations)
 
     losses = sum(loss for loss in loss_dict.values())
 
@@ -123,14 +110,17 @@ def __log_validation_results(trainer_engine):
     sys.stdout = open(train_res_file, 'a+')
     print(text)
 
-    miou, rmse = evaluate(all_categories, thing_categories, model=model, weights_file=weights_path,
-                    data_loader_val=data_loader_val, train_res_file=train_res_file)
-    sys.stdout = open(train_res_file, 'a+')
+    miou, rgb_sample, mask_gt, mask_output = eval_sem_seg(model, data_loader_val, weights_path)
 
-    writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
-    writer.add_scalar("IoU/train/epoch", miou, state_epoch)
-    writer.add_scalar("rmse/train/epoch", rmse, state_epoch)
+    mask_gt = convert_tensor_to_RGB(mask_gt.unsqueeze(0)).squeeze(0)
+    mask_output = convert_tensor_to_RGB(mask_output.unsqueeze(0)).squeeze(0)
 
+    writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
+    writer.add_image("eval/src_img", rgb_sample, state_epoch, dataformats="CHW")
+    writer.add_image("eval/gt", mask_gt, state_epoch, dataformats="CHW")
+    writer.add_image("eval/out", mask_output, state_epoch, dataformats="CHW")
+
+    
     scheduler.step()
 
 
@@ -144,7 +134,7 @@ if __name__ == "__main__":
 
     with open(train_res_file, "w+") as training_results:
         training_results.write(
-            "----- TRAINING RESULTS - Vkitti Semantic + Depth----"+"\n")
+            "----- TRAINING RESULTS - Vkitti {} ----".format(config_kitti.MODEL)+"\n")
     # Set device
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     print("Device: ", device)
@@ -154,6 +144,9 @@ if __name__ == "__main__":
 
     # Get model according to config
     model = models.get_model_by_name(config_kitti.MODEL)
+
+    if config_kitti.CHECKPOINT is not None:
+        model.load_state_dict(torch.load(config_kitti.CHECKPOINT))
     # move model to the right device
     model.to(device)
 
@@ -204,7 +197,7 @@ if __name__ == "__main__":
             depth_root,
             annotation,
             split=True,
-            val_size=0.20,
+            val_size=config_kitti.VAL_SIZE,
             n_samples=config_kitti.MAX_TRAINING_SAMPLES)
 
         # save data loaders

@@ -16,7 +16,7 @@ import config_kitti
 import temp_variables
 import sys
 import matplotlib.pyplot as plt
-import numpy as np
+
 
 
 device = torch.device(
@@ -77,7 +77,7 @@ def __results_to_json(model, data_loader_val):
     res = []
     rmse_arr = []
     iou_arr = []
-    for images, anns, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, _ in data_loader_val:
+    for images, anns, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, _, _ in data_loader_val:
         # for images, anns, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, _ in data_loader_val:
         imgs = list(img for img in images)
         lidar_fov = list(lid_fov for lid_fov in lidar_fov)
@@ -137,7 +137,7 @@ def __export_res(model, data_loader_val):
 def get_mIoU_effps(model, data_loader_val):
 
     iou_list = []
-    for images, anns, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, img_name in data_loader_val:
+    for images, anns, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, _, img_name in data_loader_val:
 
         imgs = list(img for img in images)
 

@@ -2,6 +2,7 @@
 import os.path
 import sys
 from ignite.engine import Events, Engine
+import numpy as np
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 import torch
 import torch.nn as nn
@@ -13,7 +14,7 @@ from utils.tensorize_batch import tensorize_batch
 
 from utils.get_stuff_thing_classes import get_stuff_thing_classes
 from utils.data_loader_2_coco_ann import data_loader_2_coco_ann
-from eval_coco import evaluate
+from eval_depth_completion import eval_depth
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -35,11 +36,13 @@ from datetime import datetime
 writer = SummaryWriter()
 
 
+
+
 def __update_model(trainer_engine, batch):
     model.train()
     optimizer.zero_grad()
 
-    imgs, ann, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, _, _ = batch
+    imgs, _, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, _, _ = batch
 
     imgs = list(img for img in imgs)
     lidar_fov = list(lid_fov for lid_fov in lidar_fov)
@@ -47,8 +50,7 @@ def __update_model(trainer_engine, batch):
     sparse_depth = list(sd for sd in sparse_depth)
     k_nn_indices = list(k_nn for k_nn in k_nn_indices)
     sparse_depth_gt = list(sp_d for sp_d in sparse_depth_gt)
-    annotations = [{k: v.to(device) for k, v in t.items()}
-                   for t in ann]
+    
 
     imgs = tensorize_batch(imgs, device)
     lidar_fov = tensorize_batch(lidar_fov, device, dtype=torch.float)
@@ -64,7 +66,6 @@ def __update_model(trainer_engine, batch):
                       masks,
                       lidar_fov,
                       k_nn_indices,
-                      anns=annotations,
                       sparse_depth_gt=sparse_depth_gt)
 
     losses = sum(loss for loss in loss_dict.values())
@@ -123,13 +124,24 @@ def __log_validation_results(trainer_engine):
     sys.stdout = open(train_res_file, 'a+')
     print(text)
 
-    miou, rmse = evaluate(all_categories, thing_categories, model=model, weights_file=weights_path,
-                    data_loader_val=data_loader_val, train_res_file=train_res_file)
+    rmse, rgb_sample, sparse_depth_gt_sample, sparse_depth_gt_full, out_depth = eval_depth(model, data_loader_val, weights_path)
     sys.stdout = open(train_res_file, 'a+')
-
+    
     writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
-    writer.add_scalar("IoU/train/epoch", miou, state_epoch)
     writer.add_scalar("rmse/train/epoch", rmse, state_epoch)
+
+    # write images
+    sparse_depth_gt_sample = sparse_depth_gt_sample.squeeze_(0)
+    sparse_depth_gt_sample = sparse_depth_gt_sample.cpu().numpy()/255
+    # sparse_depth_gt_sample = np.reshape(sparse_depth_gt_sample, (-1, config_kitti.CROP_OUTPUT_SIZE[0], config_kitti.CROP_OUTPUT_SIZE[1], 1))
+    out_depth_numpy = out_depth.cpu().numpy()/255
+    # out_depth_numpy = np.reshape(out_depth_numpy, (-1, config_kitti.CROP_OUTPUT_SIZE[0], config_kitti.CROP_OUTPUT_SIZE[1], 1))
+    sparse_depth_gt_full = sparse_depth_gt_full.cpu().numpy()/255
+
+    writer.add_image("eval/src_img", rgb_sample, state_epoch, dataformats="CHW")
+    writer.add_image("eval/gt_full", sparse_depth_gt_full, state_epoch, dataformats="HW")
+    writer.add_image("eval/gt", sparse_depth_gt_sample, state_epoch, dataformats="HW")
+    writer.add_image("eval/out", out_depth_numpy, state_epoch, dataformats="HW")
 
     scheduler.step()
 
@@ -144,7 +156,7 @@ if __name__ == "__main__":
 
     with open(train_res_file, "w+") as training_results:
         training_results.write(
-            "----- TRAINING RESULTS - Vkitti Semantic + Depth----"+"\n")
+            "----- TRAINING RESULTS - Vkitti {} ----".format(config_kitti.MODEL)+"\n")
     # Set device
     device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
     print("Device: ", device)
@@ -204,7 +216,7 @@ if __name__ == "__main__":
             depth_root,
             annotation,
             split=True,
-            val_size=0.20,
+            val_size=config_kitti.VAL_SIZE,
             n_samples=config_kitti.MAX_TRAINING_SAMPLES)
 
         # save data loaders

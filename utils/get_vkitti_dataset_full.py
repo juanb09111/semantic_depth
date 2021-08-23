@@ -25,7 +25,7 @@ def get_vkitti_files(dirName, ext):
     for entry in listOfFile:
         # Create full path
         fullPath = os.path.join(dirName, entry)
-        
+
         # If entry is a directory then get the list of files in this directory
         if os.path.isdir(fullPath):
             allFiles = allFiles + get_vkitti_files(fullPath, ext)
@@ -35,11 +35,9 @@ def get_vkitti_files(dirName, ext):
     return allFiles
 
 
-
 class vkittiDataset(torch.utils.data.Dataset):
     def __init__(self, imgs_root, depth_root, annotation, transforms, n_samples=None):
 
-    
         self.imgs_root = imgs_root
         self.depth_root = depth_root
 
@@ -60,7 +58,6 @@ class vkittiDataset(torch.utils.data.Dataset):
         obj_categories = self.coco.loadCats(self.obj_categories_ids)
         self.obj_categories = list(map(lambda x: x['name'], obj_categories))
 
-
         depth_files = get_vkitti_files(depth_root, "png")
         self.depth_imgs = depth_files
 
@@ -80,18 +77,18 @@ class vkittiDataset(torch.utils.data.Dataset):
         indices = indices[:, :, 1:]  # B x N x 3
 
         return indices.squeeze_(0).long()
-    
+
     def sample_depth_img(self, depth_tensor):
         (img_height, img_width) = depth_tensor.shape[1:]
-        
+
         rand_x_coors = []
         rand_y_coors = []
 
         for i in range(0, config_kitti.N_NUMBER*3):
-            rand_x_coors.append(random.randint(0, img_width -1))
+            rand_x_coors.append(random.randint(0, img_width - 1))
 
         for k in range(0, config_kitti.N_NUMBER*3):
-            rand_y_coors.append(random.randint(0, img_height -1))
+            rand_y_coors.append(random.randint(0, img_height - 1))
 
         coors = torch.zeros((config_kitti.N_NUMBER*3, 2))
 
@@ -100,7 +97,6 @@ class vkittiDataset(torch.utils.data.Dataset):
         coors[:, 0] = torch.tensor(rand_y_coors, dtype=torch.long)
         coors = torch.tensor(coors, dtype=torch.long)
 
-       
         # find unique coordinates
         _, indices = torch.unique(coors[:, :2], dim=0, return_inverse=True)
         unique_indices = torch.zeros_like(torch.unique(indices))
@@ -113,10 +109,10 @@ class vkittiDataset(torch.utils.data.Dataset):
 
         imPts = coors[unique_indices]
 
-        depth = depth_tensor[0, imPts[:,0], imPts[:,1]]/256
-        
-        #filter out long ranges of depth
-        inds= depth<config_kitti.MAX_DEPTH
+        depth = depth_tensor[0, imPts[:, 0], imPts[:, 1]]/256
+
+        # filter out long ranges of depth
+        inds = depth < config_kitti.MAX_DEPTH
 
         # fig = plt.figure(4)
         # # ax = plt.axes(projection="3d")
@@ -133,7 +129,56 @@ class vkittiDataset(torch.utils.data.Dataset):
         # imPts in NxHxW
         return imPts[inds, :][:config_kitti.N_NUMBER], depth[inds][:config_kitti.N_NUMBER]
 
+    def sample_depth_gt_img(self, depth_tensor):
+        (img_height, img_width) = depth_tensor.shape[1:]
 
+        rand_x_coors = []
+        rand_y_coors = []
+
+        for i in range(0, config_kitti.N_NUMBER*3*10):
+            rand_x_coors.append(random.randint(0, img_width - 1))
+
+        for k in range(0, config_kitti.N_NUMBER*3*10):
+            rand_y_coors.append(random.randint(0, img_height - 1))
+
+        coors = torch.zeros((config_kitti.N_NUMBER*3*10, 2))
+
+        # coors in the form of NxHxW
+        coors[:, 1] = torch.tensor(rand_x_coors, dtype=torch.long)
+        coors[:, 0] = torch.tensor(rand_y_coors, dtype=torch.long)
+        coors = torch.tensor(coors, dtype=torch.long)
+
+        # find unique coordinates
+        _, indices = torch.unique(coors[:, :2], dim=0, return_inverse=True)
+        unique_indices = torch.zeros_like(torch.unique(indices))
+
+        current_pos = 0
+        for i, val in enumerate(indices):
+            if val not in indices[:i]:
+                unique_indices[current_pos] = i
+                current_pos += 1
+
+        imPts = coors[unique_indices]
+
+        depth = depth_tensor[0, imPts[:, 0], imPts[:, 1]]/256
+
+        # filter out long ranges of depth
+        inds = depth < config_kitti.MAX_DEPTH
+
+        # fig = plt.figure(4)
+        # # ax = plt.axes(projection="3d")
+        # ax = plt.axes(projection='3d')
+
+        # ax.set_xlabel("X")
+        # ax.set_ylabel("Y")
+        # ax.set_zlabel("Z")
+        # x_data = imPts[inds, 1]
+        # y_data = imPts[inds, 0]
+        # z_data = depth[inds]
+        # ax.scatter3D(x_data, y_data, z_data, cmap='Greens', s=1)
+        # plt.show()
+        # imPts in NxHxW
+        return imPts[inds, :][:config_kitti.N_NUMBER], depth[inds][:config_kitti.N_NUMBER]
 
     def get_coco_ann(self, index):
 
@@ -154,13 +199,10 @@ class vkittiDataset(torch.utils.data.Dataset):
         semantic_mask_path = coco.loadImgs(img_id)[0]['semseg_img_filename']
         # create semantic mask
 
-        
         semantic_mask_path = os.path.join(os.path.dirname(
-        os.path.abspath(__file__)), "..", config_kitti.DATA, semantic_mask_path)
+            os.path.abspath(__file__)), "..", config_kitti.DATA, semantic_mask_path)
         semantic_mask = Image.open(semantic_mask_path)
-        
 
-        
         # number of objects in the image
         num_objs = len(coco_annotation)
 
@@ -202,16 +244,16 @@ class vkittiDataset(torch.utils.data.Dataset):
             iscrowd = torch.as_tensor(iscrowd, dtype=torch.int64)
         else:
             boxes = torch.zeros((0, 4), dtype=torch.float32)
-            areas = torch.as_tensor((boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0]))
+            areas = torch.as_tensor(
+                (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0]))
             labels = torch.zeros((1), dtype=torch.int64)
-            masks = torch.zeros((1 , *config_kitti.CROP_OUTPUT_SIZE), dtype=torch.uint8)
+            masks = torch.zeros(
+                (1, *config_kitti.CROP_OUTPUT_SIZE), dtype=torch.uint8)
             iscrowd = torch.zeros((0,), dtype=torch.int64)
-
 
         # Tensorise img_id
         img_id = torch.tensor([img_id])
         # Iscrowd
-        
 
         category_ids = torch.as_tensor(category_ids, dtype=torch.int64)
 
@@ -229,47 +271,47 @@ class vkittiDataset(torch.utils.data.Dataset):
         my_annotation["num_instances"] = num_objs
         my_annotation['masks'] = masks
 
-       
         if self.transforms is not None:
             semantic_mask = self.transforms(crop=True)(semantic_mask)*255
-            semantic_mask = torch.as_tensor(semantic_mask, dtype=torch.uint8).squeeze_(0)
-            
-            
-        
+            semantic_mask = torch.as_tensor(
+                semantic_mask, dtype=torch.uint8).squeeze_(0)
+
         my_annotation["semantic_mask"] = semantic_mask
-        
+
         return img_filename, my_annotation
 
     def __getitem__(self, index):
 
         img_filename, ann = self.get_coco_ann(index)
-        
+
         scene = img_filename.split("/")[-6]
-        
+
         basename = img_filename.split(".")[-2].split("_")[-1]
-        
-        depth_filename = [s for s in self.depth_imgs if (scene in s and basename in s)][0]
+
+        depth_filename = [s for s in self.depth_imgs if (
+            scene in s and basename in s)][0]
         # print(img_filename, depth_filename)
-        
-        
+
         img_filename = os.path.join(os.path.dirname(
-        os.path.abspath(__file__)), "..", config_kitti.DATA , img_filename)
+            os.path.abspath(__file__)), "..", config_kitti.DATA, img_filename)
 
         depth_filename = os.path.join(os.path.dirname(
-        os.path.abspath(__file__)), "..", config_kitti.DATA, depth_filename)
+            os.path.abspath(__file__)), "..", config_kitti.DATA, depth_filename)
 
         source_img = Image.open(img_filename)
         depth_img = Image.open(depth_filename)
         # img width and height
-        
 
         if self.transforms is not None:
             source_img = self.transforms(crop=True)(source_img)
             depth_img = self.transforms(crop=True)(depth_img)
-        
-        sparse_depth_gt = np.array(depth_img, dtype=int).astype(np.float)/256
-        sparse_depth_gt = torch.from_numpy(sparse_depth_gt)
-        sparse_depth_gt = torch.where(sparse_depth_gt >= config_kitti.MAX_DEPTH, torch.tensor([0], dtype=torch.float64), sparse_depth_gt)
+
+        sparse_depth_gt_full = np.array(
+            depth_img, dtype=int).astype(np.float)/256
+        sparse_depth_gt_full = torch.from_numpy(sparse_depth_gt_full)
+        sparse_depth_gt_full = torch.where(sparse_depth_gt_full >= config_kitti.MAX_DEPTH, torch.tensor([
+                                           0], dtype=torch.float64), sparse_depth_gt_full)
+        # print("sparse_depth_gt 1", sparse_depth_gt.shape)
         # print(torch.max(sparse_depth_gt), torch.min(sparse_depth_gt))
         # plt.imshow(source_img.permute(1,2,0))
         # plt.show()
@@ -278,11 +320,11 @@ class vkittiDataset(torch.utils.data.Dataset):
         # plt.show()
 
         imPts, depth = self.sample_depth_img(depth_img)
+        imPts_gt, depth_gt = self.sample_depth_gt_img(depth_img)
 
         virtual_lidar = torch.zeros(imPts.shape[0], 3)
         virtual_lidar[:, 0:2] = imPts
         virtual_lidar[:, 2] = depth
-
 
         mask = torch.zeros(source_img.shape[1:], dtype=torch.bool)
         mask[imPts[:, 0], imPts[:, 1]] = True
@@ -293,8 +335,28 @@ class vkittiDataset(torch.utils.data.Dataset):
         sparse_depth = torch.zeros_like(
             source_img[0, :, :].unsqueeze_(0), dtype=torch.float)
 
-        sparse_depth[0, imPts[:, 0], imPts[:, 1]] = torch.tensor(
-            depth, dtype=torch.float)
+        # sparse_depth[0, imPts[:, 0], imPts[:, 1]] = torch.tensor(
+        #     depth, dtype=torch.float)
+
+        sparse_depth[0, imPts[:, 0], imPts[:, 1]
+                     ] = depth.clone().detach().type(torch.float)
+
+        # -------Generate virtual ground truth
+
+        sparse_depth_gt = torch.zeros_like(
+            source_img[0, :, :].unsqueeze_(0), dtype=torch.float)
+
+        # sparse_depth_gt[0, imPts[:, 0], imPts[:, 1]] = torch.tensor(
+        #     depth, dtype=torch.float)
+        sparse_depth_gt[0, imPts[:, 0], imPts[:, 1]
+                        ] = depth.clone().detach().type(torch.float)
+        # sparse_depth_gt[0, imPts_gt[:, 0], imPts_gt[:, 1]] = torch.tensor(
+        #     depth_gt, dtype=torch.float)
+
+        sparse_depth_gt[0, imPts_gt[:, 0], imPts_gt[:, 1]
+                        ] = depth_gt.clone().detach().type(torch.float)
+
+        # print("sparse_depth_gt 2", sparse_depth_gt.shape)
 
         # plt.imshow(source_img.permute(1,2,0))
         # plt.show()
@@ -309,11 +371,10 @@ class vkittiDataset(torch.utils.data.Dataset):
         #     plt.imshow(m)
         #     plt.show()
         # print(source_img, virtual_lidar, mask, sparse_depth, k_nn_indices, sparse_depth_gt)
-        return source_img, ann, virtual_lidar, mask, sparse_depth, k_nn_indices, sparse_depth_gt, basename
+        return source_img, ann, virtual_lidar, mask, sparse_depth, k_nn_indices, sparse_depth_gt, sparse_depth_gt_full, basename
 
     def __len__(self):
         return len(self.ids)
-
 
 
 def get_transform(resize=False, normalize=False, crop=False):
@@ -336,10 +397,10 @@ def get_transform(resize=False, normalize=False, crop=False):
     return transforms.Compose(custom_transforms)
 
 
-
 def get_datasets(imgs_root, depth_root, annotation, split=False, val_size=0.20, n_samples=None):
     # imgs_root, depth_root, annotation
-    vkitti_dataset = vkittiDataset(imgs_root, depth_root, annotation, transforms=get_transform, n_samples=n_samples)
+    vkitti_dataset = vkittiDataset(
+        imgs_root, depth_root, annotation, transforms=get_transform, n_samples=n_samples)
     if split:
         if val_size >= 1:
             raise AssertionError(
@@ -364,7 +425,8 @@ def collate_fn(batch):
 def get_dataloaders(batch_size, imgs_root, depth_root, annotation, split=False, val_size=0.20, n_samples=None):
 
     if split:
-        train_set, val_set = get_datasets(imgs_root, depth_root, annotation, split=True, val_size=0.20, n_samples=n_samples)
+        train_set, val_set = get_datasets(
+            imgs_root, depth_root, annotation, split=True, val_size=0.20, n_samples=n_samples)
 
         data_loader_train = torch.utils.data.DataLoader(train_set,
                                                         batch_size=batch_size,
@@ -382,14 +444,15 @@ def get_dataloaders(batch_size, imgs_root, depth_root, annotation, split=False, 
         return data_loader_train, data_loader_val
 
     else:
-        dataset = get_datasets(imgs_root, depth_root, annotation, split=False, val_size=0.20, n_samples=n_samples)
+        dataset = get_datasets(imgs_root, depth_root, annotation,
+                               split=False, val_size=0.20, n_samples=n_samples)
 
         data_loader = torch.utils.data.DataLoader(dataset,
-                                                    batch_size=batch_size,
-                                                    shuffle=True,
-                                                    num_workers=0,
-                                                    collate_fn=collate_fn,
-                                                    drop_last=True)
+                                                  batch_size=batch_size,
+                                                  shuffle=True,
+                                                  num_workers=0,
+                                                  collate_fn=collate_fn,
+                                                  drop_last=True)
     return data_loader
 
 

@@ -2,6 +2,7 @@
 results/
 vscode/
 res/
+runs/
 **/*.pth
 **/*.pkl
 **/*.png

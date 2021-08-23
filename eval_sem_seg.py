@@ -94,5 +94,5 @@ def eval_sem_seg(model, data_loader_val, weights_file):
                 iou_arr.append(iou)
 
         torch.cuda.empty_cache()
-    return np.mean(iou_arr), imgs[0], anns[0]["semantic_logits"], outputs[0]["semantic_logits"]
+    return np.mean(iou_arr), imgs[0], anns[0]["semantic_mask"], outputs[0]["semantic_logits"]
 

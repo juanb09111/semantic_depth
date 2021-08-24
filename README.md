@@ -1,5 +1,5 @@
 # Semantic Segmentation and Depth completion 
-EfficientPS + FuseNet
+Semantic segmentation + FuseNet with shared backbone
 
 # Requirements
 

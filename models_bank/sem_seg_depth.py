@@ -121,6 +121,23 @@ class Semseg_Depth(nn.Module):
         super(Semseg_Depth, self).__init__()
 
         # Depth completion ------------------
+
+        # Depth head---------------------------------------------------------------
+        
+        self.depth_head = sem_seg_head(
+        backbone_out_channels, 1, original_image_size, depthwise_conv=config.SEMANTIC_HEAD_DEPTHWISE_CONV)
+
+        self.feat_conv = nn.Sequential(
+            nn.Conv2d(in_channels=1, out_channels=16,
+                      kernel_size=3, stride=2, padding=1),
+            nn.BatchNorm2d(16),
+            nn.ReLU(),
+            nn.Conv2d(in_channels=16, out_channels=16,
+                      kernel_size=3, stride=1, padding=1),
+            nn.BatchNorm2d(16),
+            nn.ReLU()
+        )
+
         self.sparse_conv = nn.Sequential(
             nn.Conv2d(in_channels=1, out_channels=16,
                       kernel_size=3, stride=2, padding=1),
@@ -144,7 +161,7 @@ class Semseg_Depth(nn.Module):
         )
 
         self.fuse_conv = nn.Sequential(
-            FuseBlock(48, 64, k_number, n_number=n_number),
+            FuseBlock(64, 64, k_number, n_number=n_number),
             FuseBlock(64, 64, k_number, n_number=n_number,
                       extra_output_layer=True),
             FuseBlock(64, 64, k_number, n_number=n_number,
@@ -214,6 +231,15 @@ class Semseg_Depth(nn.Module):
         # Depth completion ------------------------
         _, H, W = mask.shape
 
+        # depth head
+
+        feat = self.depth_head(P4, P8, P16, P32)
+
+        # feat conv
+
+        y_feat = self.feat_conv(feat)
+
+
         # sparse depth branch
         y_sparse = self.sparse_conv(sparse_depth)  # B x 16 x H/2 x W/2
 
@@ -221,12 +247,12 @@ class Semseg_Depth(nn.Module):
         x_concat_d = torch.cat((img, sparse_depth), dim=1)
         y_rgbd = self.rgbd_conv(x_concat_d)  # B x 32 x H/2 x W/2
 
-        y_rgbd_concat_y_sparse = torch.cat((y_rgbd, y_sparse), dim=1)
+        y_rgbd_cat_y_sparse_cat_y_feat = torch.cat((y_rgbd, y_sparse, y_feat), dim=1)
 
-        y_rgbd_concat_y_sparse = F.interpolate(y_rgbd_concat_y_sparse, (H, W))
+        y_rgbd_cat_y_sparse_cat_y_feat = F.interpolate(y_rgbd_cat_y_sparse_cat_y_feat, (H, W))
 
         fused, _, _, _ = self.fuse_conv(
-            (y_rgbd_concat_y_sparse, mask, coors, k_nn_indices))
+            (y_rgbd_cat_y_sparse_cat_y_feat, mask, coors, k_nn_indices))
 
         out = self.output_layer(fused)
 

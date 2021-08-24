@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import temp_variables
 
 class_colors = [
     [0, 0, 0],
@@ -16,10 +17,12 @@ class_colors = [
     [80, 80, 80],
     [160, 60, 60],
     [255, 127, 80],
-    [0, 139, 139]
+    [0, 139, 139],
+    [255,255,0]
 ]
 
 def convert_tensor_to_RGB(network_output):
-    x = torch.FloatTensor(class_colors)
+    x = torch.cuda.FloatTensor(class_colors)
+    network_output = torch.tensor(network_output, device=temp_variables.DEVICE).to(torch.int64)
     converted_tensor = nn.functional.embedding(network_output, x).permute(0, 3, 1, 2)
-    return converted_tensor
+    return torch.tensor(converted_tensor, device=temp_variables.DEVICE)

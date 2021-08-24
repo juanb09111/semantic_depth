@@ -27,5 +27,4 @@ def get_model_by_name(model_name):
         return SemsegNet(config_kitti.BACKBONE_OUT_CHANNELS,
                          config_kitti.NUM_THING_CLASSES,
                          config_kitti.NUM_STUFF_CLASSES,
-                         config_kitti.CROP_OUTPUT_SIZE,
-
+                         config_kitti.CROP_OUTPUT_SIZE)

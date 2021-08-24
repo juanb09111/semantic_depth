@@ -194,10 +194,10 @@ if __name__ == "__main__":
         data_loader_train = torch.load(config_kitti.DATA_LOADER_TRAIN_FILANME)
         data_loader_val = torch.load(config_kitti.DATA_LOADER_VAL_FILENAME)
 
-        # Dataloader to coco ann for evaluation purposes
-        annotation = os.path.join(os.path.dirname(os.path.abspath(
-            __file__)), config_kitti.COCO_ANN)
-        data_loader_2_coco_ann(config_kitti.DATA_LOADER_VAL_FILENAME, annotation)
+        # # Dataloader to coco ann for evaluation purposes
+        # annotation = os.path.join(os.path.dirname(os.path.abspath(
+        #     __file__)), config_kitti.COCO_ANN)
+        # data_loader_2_coco_ann(config_kitti.DATA_LOADER_VAL_FILENAME, annotation)
 
     else:
 
@@ -230,7 +230,7 @@ if __name__ == "__main__":
         torch.save(data_loader_val, data_loader_val_filename)
 
         # Dataloader to coco ann for evaluation purposes
-        data_loader_2_coco_ann(data_loader_val_filename, annotation)
+        # data_loader_2_coco_ann(data_loader_val_filename, annotation)
 
     # ---------------TRAIN--------------------------------------
     scheduler = MultiStepLR(optimizer, milestones=[65, 80, 85, 90], gamma=0.1)

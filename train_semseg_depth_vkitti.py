@@ -122,12 +122,13 @@ def __log_validation_results(trainer_engine):
     sys.stdout = open(train_res_file, 'a+')
     print(text)
 
-    rmse, rgb_sample, mask_gt, mask_output, sparse_depth_gt_sample, sparse_depth_gt_full, out_depth = eval_sem_seg_depth(
+    rmse, miou, rgb_sample, mask_gt, mask_output, sparse_depth_gt_sample, sparse_depth_gt_full, out_depth = eval_sem_seg_depth(
         model, data_loader_val, weights_path)
     sys.stdout = open(train_res_file, 'a+')
 
     writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
     writer.add_scalar("rmse/train/epoch", rmse, state_epoch)
+    writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
 
     # write images
     sparse_depth_gt_sample = sparse_depth_gt_sample.squeeze_(0)

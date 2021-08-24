@@ -116,6 +116,7 @@ def __log_validation_results(trainer_engine):
     mask_output = torch.argmax(mask_output, dim=0)
     mask_output = convert_tensor_to_RGB(mask_output.unsqueeze(0)).squeeze(0)/255
 
+    writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
     writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
     writer.add_image("eval/src_img", rgb_sample, state_epoch, dataformats="CHW")
     writer.add_image("eval/gt", mask_gt, state_epoch, dataformats="CHW")

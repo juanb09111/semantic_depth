@@ -11,6 +11,7 @@ from torch.optim.lr_scheduler import MultiStepLR
 from utils.get_vkitti_dataset_full import get_dataloaders
 
 from utils.tensorize_batch import tensorize_batch
+from utils.convert_tensor_to_RGB import convert_tensor_to_RGB
 
 from utils.get_stuff_thing_classes import get_stuff_thing_classes
 from utils.data_loader_2_coco_ann import data_loader_2_coco_ann
@@ -144,6 +145,11 @@ def __log_validation_results(trainer_engine):
                      state_epoch, dataformats="HW")
     writer.add_image("eval_depth/out", out_depth_numpy,
                      state_epoch, dataformats="HW")
+
+    mask_gt = convert_tensor_to_RGB(mask_gt.unsqueeze(0)).squeeze(0)/255
+    mask_output = torch.argmax(mask_output, dim=0)
+    mask_output = convert_tensor_to_RGB(mask_output.unsqueeze(0)).squeeze(0)/255
+
 
     writer.add_image("eval_semantic/src_img", rgb_sample,
                      state_epoch, dataformats="CHW")

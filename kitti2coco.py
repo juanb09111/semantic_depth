@@ -151,7 +151,7 @@ def map_semseg_img(img, basename, semantic_map_dest):
     for i in range(h):
         for j in range(w):
             rgb = np.asarray(img[i, j])
-            if (rgb != [0, 0, 0]).all():
+            if len(np.where((rgb != [0, 0, 0]))[0]) > 0:
                 pix_cat = list(filter(lambda rgb2class_tup: (
                     rgb2class_tup[1] == rgb).all(), rgb_2_class))[0]
                 pix_cat = pix_cat[3]

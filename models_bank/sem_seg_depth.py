@@ -125,7 +125,7 @@ class Semseg_Depth(nn.Module):
         # Depth head---------------------------------------------------------------
         
         self.depth_head = sem_seg_head(
-        backbone_out_channels, 1, original_image_size, depthwise_conv=config.SEMANTIC_HEAD_DEPTHWISE_CONV)
+        backbone_out_channels, 1, original_image_size, depthwise_conv=config_kitti.SEMANTIC_HEAD_DEPTHWISE_CONV)
 
         self.feat_conv = nn.Sequential(
             nn.Conv2d(in_channels=1, out_channels=16,

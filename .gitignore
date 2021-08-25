@@ -3,6 +3,7 @@ results/
 vscode/
 res/
 runs/
+prev_runs/
 data/
 **/*.pth
 **/*.pkl

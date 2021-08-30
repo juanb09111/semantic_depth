@@ -166,6 +166,10 @@ if __name__ == "__main__":
 
     # Get model according to config
     model = models.get_model_by_name(config_kitti.MODEL)
+    
+    if config_kitti.CHECKPOINT is not None:
+        model.load_state_dict(torch.load(config_kitti.CHECKPOINT))
+    
     # move model to the right device
     model.to(device)
 

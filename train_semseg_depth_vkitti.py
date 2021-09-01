@@ -11,10 +11,11 @@ from torch.optim.lr_scheduler import MultiStepLR
 from utils.get_vkitti_dataset_full import get_dataloaders
 
 from utils.tensorize_batch import tensorize_batch
+from utils.convert_tensor_to_RGB import convert_tensor_to_RGB
 
 from utils.get_stuff_thing_classes import get_stuff_thing_classes
 from utils.data_loader_2_coco_ann import data_loader_2_coco_ann
-from eval_depth_completion import eval_depth
+from eval_sem_seg_depth import eval_sem_seg_depth
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -25,9 +26,6 @@ import constants
 import models
 
 from datetime import datetime
-# from utils import map_hasty
-# from utils import get_splits
-# import matplotlib.pyplot as plt
 
 
 # %%
@@ -36,13 +34,11 @@ from datetime import datetime
 writer = SummaryWriter()
 
 
-
-
 def __update_model(trainer_engine, batch):
     model.train()
     optimizer.zero_grad()
 
-    imgs, _, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, _, _ = batch
+    imgs, ann, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, _, _ = batch
 
     imgs = list(img for img in imgs)
     lidar_fov = list(lid_fov for lid_fov in lidar_fov)
@@ -50,7 +46,6 @@ def __update_model(trainer_engine, batch):
     sparse_depth = list(sd for sd in sparse_depth)
     k_nn_indices = list(k_nn for k_nn in k_nn_indices)
     sparse_depth_gt = list(sp_d for sp_d in sparse_depth_gt)
-    
 
     imgs = tensorize_batch(imgs, device)
     lidar_fov = tensorize_batch(lidar_fov, device, dtype=torch.float)
@@ -60,13 +55,17 @@ def __update_model(trainer_engine, batch):
     sparse_depth_gt = tensorize_batch(
         sparse_depth_gt, device, dtype=torch.float)
 
+    annotations = [{k: v.to(device) for k, v in t.items()}
+                   for t in ann]
+
     # print("shape", imgs.shape, sparse_depth.shape, sparse_depth_gt.shape)
     loss_dict = model(imgs,
                       sparse_depth,
                       masks,
                       lidar_fov,
                       k_nn_indices,
-                      sparse_depth_gt=sparse_depth_gt)
+                      sparse_depth_gt=sparse_depth_gt,
+                      anns=annotations)
 
     losses = sum(loss for loss in loss_dict.values())
 
@@ -124,25 +123,42 @@ def __log_validation_results(trainer_engine):
     sys.stdout = open(train_res_file, 'a+')
     print(text)
 
-    rmse, rgb_sample, sparse_depth_gt_sample, sparse_depth_gt_full, out_depth = eval_depth(model, data_loader_val, weights_path)
+    rmse, miou, rgb_sample, mask_gt, mask_output, sparse_depth_gt_sample, sparse_depth_gt_full, out_depth = eval_sem_seg_depth(
+        model, data_loader_val, weights_path)
     sys.stdout = open(train_res_file, 'a+')
-    
+
     writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
     writer.add_scalar("rmse/train/epoch", rmse, state_epoch)
+    writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
 
     # write images
     sparse_depth_gt_sample = sparse_depth_gt_sample.squeeze_(0)
     sparse_depth_gt_sample = sparse_depth_gt_sample.cpu().numpy()/255
-    # sparse_depth_gt_sample = np.reshape(sparse_depth_gt_sample, (-1, config_kitti.CROP_OUTPUT_SIZE[0], config_kitti.CROP_OUTPUT_SIZE[1], 1))
     out_depth_numpy = out_depth.cpu().numpy()/255
-    # out_depth_numpy = np.reshape(out_depth_numpy, (-1, config_kitti.CROP_OUTPUT_SIZE[0], config_kitti.CROP_OUTPUT_SIZE[1], 1))
     sparse_depth_gt_full = sparse_depth_gt_full.cpu().numpy()/255
 
-    writer.add_image("eval/src_img", rgb_sample, state_epoch, dataformats="CHW")
-    writer.add_image("eval/gt_full", sparse_depth_gt_full, state_epoch, dataformats="HW")
-    writer.add_image("eval/gt", sparse_depth_gt_sample, state_epoch, dataformats="HW")
-    writer.add_image("eval/out", out_depth_numpy, state_epoch, dataformats="HW")
+    writer.add_image("eval_depth/src_img", rgb_sample,
+                     state_epoch, dataformats="CHW")
+    writer.add_image("eval_depth/gt_full", sparse_depth_gt_full,
+                     state_epoch, dataformats="HW")
+    writer.add_image("eval_depth/gt", sparse_depth_gt_sample,
+                     state_epoch, dataformats="HW")
+    writer.add_image("eval_depth/out", out_depth_numpy,
+                     state_epoch, dataformats="HW")
 
+    mask_gt = convert_tensor_to_RGB(mask_gt.unsqueeze(0)).squeeze(0)/255
+    mask_output = torch.argmax(mask_output, dim=0)
+    mask_output = convert_tensor_to_RGB(mask_output.unsqueeze(0)).squeeze(0)/255
+
+
+    writer.add_image("eval_semantic/src_img", rgb_sample,
+                     state_epoch, dataformats="CHW")
+    writer.add_image("eval_semantic/gt", mask_gt,
+                     state_epoch, dataformats="CHW")
+    writer.add_image("eval_semantic/out", mask_output,
+                     state_epoch, dataformats="CHW")
+
+    # semantic seg results
     scheduler.step()
 
 
@@ -158,7 +174,8 @@ if __name__ == "__main__":
         training_results.write(
             "----- TRAINING RESULTS - Vkitti {} ----".format(config_kitti.MODEL)+"\n")
     # Set device
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    device = torch.device(
+        'cuda') if torch.cuda.is_available() else torch.device('cpu')
     print("Device: ", device)
     temp_variables.DEVICE = device
     # Empty cuda cache
@@ -166,10 +183,9 @@ if __name__ == "__main__":
 
     # Get model according to config
     model = models.get_model_by_name(config_kitti.MODEL)
-    
+
     if config_kitti.CHECKPOINT is not None:
         model.load_state_dict(torch.load(config_kitti.CHECKPOINT))
-    
     # move model to the right device
     model.to(device)
 
@@ -188,7 +204,6 @@ if __name__ == "__main__":
         os.path.abspath(__file__)), config_kitti.COCO_ANN)
     all_categories, stuff_categories, thing_categories = get_stuff_thing_classes(
         ann_file)
-
 
 
     data_loader_train = None

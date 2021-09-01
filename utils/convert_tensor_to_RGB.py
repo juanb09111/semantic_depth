@@ -17,8 +17,7 @@ class_colors = [
     [80, 80, 80],
     [160, 60, 60],
     [255, 127, 80],
-    [0, 139, 139],
-    [255,255,0]
+    [0, 139, 139]
 ]
 
 def convert_tensor_to_RGB(network_output):

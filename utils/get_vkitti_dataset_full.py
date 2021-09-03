@@ -422,25 +422,31 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 
-def get_dataloaders(batch_size, imgs_root, depth_root, annotation, split=False, val_size=0.20, n_samples=None):
+def get_dataloaders(batch_size, imgs_root, depth_root, annotation, num_replicas, rank, split=False, val_size=0.20, n_samples=None):
 
     if split:
         train_set, val_set = get_datasets(
             imgs_root, depth_root, annotation, split=True, val_size=0.20, n_samples=n_samples)
 
+        train_sampler = torch.utils.data.distributed.DistributedSampler(
+            train_set, num_replicas=num_replicas, rank=rank)
+
+        val_sampler = torch.utils.data.distributed.DistributedSampler(
+            val_set, num_replicas=num_replicas, rank=rank)
+
         data_loader_train = torch.utils.data.DataLoader(train_set,
                                                         batch_size=batch_size,
-                                                        shuffle=True,
-                                                        num_workers=0,
+                                                        # num_workers=0,
                                                         collate_fn=collate_fn,
-                                                        drop_last=True)
+                                                        drop_last=True,
+                                                        sampler=train_sampler)
 
         data_loader_val = torch.utils.data.DataLoader(val_set,
                                                       batch_size=batch_size,
-                                                      shuffle=True,
-                                                      num_workers=0,
+                                                    #   num_workers=0,
                                                       collate_fn=collate_fn,
-                                                      drop_last=True)
+                                                      drop_last=True,
+                                                      sampler=val_sampler)
         return data_loader_train, data_loader_val
 
     else:
@@ -456,52 +462,4 @@ def get_dataloaders(batch_size, imgs_root, depth_root, annotation, split=False, 
     return data_loader
 
 
-# imgs_root = os.path.join(os.path.dirname(os.path.abspath(
-#     __file__)), "../data_vkitti/virtual_world_vkitti-2/vkitti_2.0.3_rgb/")
-
-# depth_root = os.path.join(os.path.dirname(os.path.abspath(
-#     __file__)), "../data_vkitti/virtual_world_vkitti-2/vkitti_2.0.3_depth/")
-
-# annotation = os.path.join(os.path.dirname(os.path.abspath(
-#     __file__)), "../kitti2coco_ann_crop.json")
-
-# vkitti_dataset = vkittiDataset(imgs_root, depth_root, annotation, get_transform)
-
-# for i in random.sample(range(0, 2120), 30):
-
-#     vkitti_dataset.__getitem__(i)
-
-# data_loader_train, data_loader_val = get_dataloaders(1, imgs_root, depth_root, split=True, val_size=0.20, n_samples=None)
-
-# print(len(data_loader_train), len(data_loader_val))
-# data_depth_velodyne_root = os.path.join(os.path.dirname(os.path.abspath(
-#     __file__)), "../data_kitti/kitti_depth_completion_unmodified/data_depth_velodyne/train/")
-# data_depth_annotated_root = os.path.join(os.path.dirname(os.path.abspath(
-#     __file__)), "../data_kitti/kitti_depth_completion_unmodified/data_depth_annotated/train/")
-
-# calib_velo2cam = calib_filename = os.path.join(os.path.dirname(os.path.abspath(
-#     __file__)), "../data_kitti/kitti_depth_completion_unmodified/imgs/2011_09_26/calib_velo_to_cam.txt")
-# calib_cam2cam = calib_filename = os.path.join(os.path.dirname(os.path.abspath(
-#     __file__)), "../data_kitti/kitti_depth_completion_unmodified/imgs/2011_09_26/calib_cam_to_cam.txt")
-
-# kitti_data_loader = get_dataloaders(batch_size=1, imgs_root=imgs_root,
-#                                     data_depth_velodyne_root=data_depth_velodyne_root, data_depth_annotated_root=data_depth_annotated_root, calib_velo2cam=calib_velo2cam, calib_cam2cam=calib_cam2cam)
-
-
-# iterator = iter(kitti_data_loader)
-
-# # (img, imPts, lidar_fov, mask, sparse_depth), gt_img = next(iterator)
-
-# img, imPts, lidar_fov, mask, sparse_depth, k_nn_indices, gt_img = next(iterator)
-
-# # print(img[0].shape, imPts[0].shape, lidar_fov[0].shape, gt_img[0].shape)
-
-# # img, imPts, lidar_fov, mask, sparse_depth = data_tuple[0]
-
-
-# for inputs in kitti_data_loader:
-
-#     img, imPts, lidar_fov, mask, sparse_depth, k_nn_indices, gt_img = inputs
-
-
-#     print(img[0].shape, imPts[0].shape, lidar_fov[0].shape, mask[0].shape, sparse_depth[0].shape, k_nn_indices[0].shape, gt_img[0].shape)
+#

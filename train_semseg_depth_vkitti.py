@@ -160,6 +160,7 @@ def __log_validation_results(trainer_engine):
 
 if __name__ == "__main__":
 
+    # Write results in text file
     now = datetime.now()
     timestamp = datetime.timestamp(now)
     res_filename = "results_{}_{}".format(config_kitti.MODEL, timestamp)

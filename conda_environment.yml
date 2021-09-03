@@ -106,6 +106,7 @@ dependencies:
     - bleach==3.1.5
     - cachetools==4.1.1
     - chardet==3.0.4
+    - cloudpickle==1.6.0
     - configobj==5.0.6
     - decorator==4.4.2
     - defusedxml==0.6.0
@@ -115,6 +116,7 @@ dependencies:
     - google-auth==1.23.0
     - google-auth-oauthlib==0.4.2
     - grpcio==1.33.2
+    - horovod==0.22.1
     - idna==2.10
     - imageio==2.9.0
     - imagesize==1.2.0
@@ -155,6 +157,7 @@ dependencies:
     - prometheus-client==0.8.0
     - prompt-toolkit==3.0.5
     - protobuf==3.12.2
+    - psutil==5.8.0
     - ptyprocess==0.6.0
     - pyasn1==0.4.8
     - pyasn1-modules==0.2.8

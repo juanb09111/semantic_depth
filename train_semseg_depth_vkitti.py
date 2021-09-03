@@ -5,16 +5,12 @@ from ignite.engine import Events, Engine
 import numpy as np
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
 from torch.optim.lr_scheduler import MultiStepLR
 from utils.get_vkitti_dataset_full import get_dataloaders
 
 from utils.tensorize_batch import tensorize_batch
 from utils.convert_tensor_to_RGB import convert_tensor_to_RGB
 
-from utils.get_stuff_thing_classes import get_stuff_thing_classes
-from utils.data_loader_2_coco_ann import data_loader_2_coco_ann
 from eval_sem_seg_depth import eval_sem_seg_depth
 
 from torch.utils.tensorboard import SummaryWriter

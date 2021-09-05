@@ -9,7 +9,7 @@ from common_blocks.continuous_conv import ContinuousConvolution
 from segmentation_heads.sem_seg import segmentation_head as sem_seg_head
 from backbones_bank.tunned_maskrcnn.utils.backbone_utils import resnet_fpn_backbone
 
-import temp_variables
+
 import config_kitti
 import matplotlib.pyplot as plt
 
@@ -205,7 +205,7 @@ class Semseg_Depth(nn.Module):
             backbone_out_channels,
             num_ins_classes + num_sem_classes + 1, original_image_size, depthwise_conv=config_kitti.SEMANTIC_HEAD_DEPTHWISE_CONV)
 
-    def forward(self, img, sparse_depth, mask, coors, k_nn_indices, sparse_depth_gt=None, anns=None):
+    def forward(self, img, sparse_depth, mask, coors, k_nn_indices, sparse_depth_gt=None, semantic_masks=None):
         """
         inputs:
         img: input rgb (B x 3 x H x W)
@@ -217,8 +217,7 @@ class Semseg_Depth(nn.Module):
         output:
         depth: completed depth
         """
-
-
+        
         # Semantic Segmentation
 
         backbone_feat = self.backbone(img)
@@ -260,21 +259,21 @@ class Semseg_Depth(nn.Module):
 
         if self.training:
             
+            device = sparse_depth_gt.get_device()
             # Depth completion 
-            mask_gt = torch.where(sparse_depth_gt > 0, torch.tensor((1), device=temp_variables.DEVICE,
-                                                                    dtype=torch.float64), torch.tensor((0), device=temp_variables.DEVICE, dtype=torch.float64))
+            mask_gt = torch.where(sparse_depth_gt > 0, torch.tensor((1), device=device,
+                                                                    dtype=torch.float64), torch.tensor((0), device=device, dtype=torch.float64))
             mask_gt = mask_gt.squeeze_(1)
             mask_gt.requires_grad_(True)
-            sparse_depth_gt = sparse_depth_gt.squeeze_(
-                1)  # remove C dimension there's only one
+            sparse_depth_gt = sparse_depth_gt.squeeze_(1)  # remove C dimension there's only one
 
             depth_loss = F.mse_loss(out*mask_gt, sparse_depth_gt*mask_gt)
 
             # Semanti Segmentation 
-            semantic_masks = list(
-                map(lambda ann: ann['semantic_mask'], anns))
-            semantic_masks = tensorize_batch(
-                semantic_masks, temp_variables.DEVICE)
+            # semantic_masks = list(
+            #     map(lambda ann: ann['semantic_mask'], anns))
+            # semantic_masks = tensorize_batch(
+            #     semantic_masks, temp_variables.DEVICE)
 
             semantic_loss = F.cross_entropy(
                 semantic_logits, semantic_masks.long())

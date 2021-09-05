@@ -13,37 +13,33 @@ from pycocotools.coco import COCO
 import models
 import constants
 import config_kitti
-import temp_variables
+
 import sys
 import matplotlib.pyplot as plt
 
 
-device = torch.device(
-    'cuda') if torch.cuda.is_available() else torch.device('cpu')
-print(device)
-
-temp_variables.DEVICE = device
 torch.cuda.empty_cache()
 
 
-def RMSE(sparse_depth_gt, pred):
+def RMSE(sparse_depth_gt, pred, device):
     with torch.no_grad():
-        mask_gt = torch.where(sparse_depth_gt > 0, torch.tensor((1), device=temp_variables.DEVICE,
-                                                                dtype=torch.float64), torch.tensor((0), device=temp_variables.DEVICE, dtype=torch.float64))
+        mask_gt = torch.where(sparse_depth_gt > 0, torch.tensor((1), device=device,
+                                                                dtype=torch.float64), torch.tensor((0), device=device, dtype=torch.float64))
         mask_gt = mask_gt.squeeze_(1)
 
-        sparse_depth_gt = sparse_depth_gt.squeeze_(0)  # remove C dimension there's only one
+        sparse_depth_gt = sparse_depth_gt.squeeze_(
+            0)  # remove C dimension there's only one
 
         c = torch.tensor((1000), device=device)
         sparse_depth_gt = sparse_depth_gt*c
         pred = pred*c
 
         criterion = nn.MSELoss()
-        
+
         res = torch.sqrt(criterion(sparse_depth_gt*mask_gt, pred*mask_gt))
 
-    
     return res
+
 
 def mIOU(label, pred):
     with torch.no_grad():
@@ -74,14 +70,11 @@ def mIOU(label, pred):
     return np.mean(present_iou_list)
 
 
-def eval_sem_seg_depth(model, data_loader_val, weights_file):
-
-    device = torch.device(
-        'cuda') if torch.cuda.is_available() else torch.device('cpu')
+def eval_sem_seg_depth(model, data_loader_val, weights_file, device):
 
     # load weights
     print("eval depth completion weights: ", weights_file)
-    model.load_state_dict(torch.load(weights_file))
+    model.load_state_dict(torch.load(weights_file)["state_dict"])
     # move model to the right device
     model.to(device)
 
@@ -112,6 +105,11 @@ def eval_sem_seg_depth(model, data_loader_val, weights_file):
         sparse_depth_gt_full = tensorize_batch(
             sparse_depth_gt_full, device, dtype=torch.float)
 
+        semantic_masks = list(
+            map(lambda ann: ann['semantic_mask'], annotations))
+
+        semantic_masks = tensorize_batch(semantic_masks, device)
+
         model.eval()
 
         with torch.no_grad():
@@ -120,17 +118,17 @@ def eval_sem_seg_depth(model, data_loader_val, weights_file):
                             lidar_fov,
                             k_nn_indices,
                             sparse_depth_gt=None,
-                            anns=annotations)
+                            semantic_masks=None)
 
             for idx, out in enumerate(outputs):
                 out_depth = outputs[idx]["depth"]
-                
+
                 # --------------------------------------
-                rmse = RMSE(sparse_depth_gt[idx], out_depth)
+                rmse = RMSE(sparse_depth_gt[idx], out_depth, device)
                 rmse_arr.append(rmse.cpu().data.numpy())
 
                 # Calculate miou
-                semantic_mask = anns[idx]["semantic_mask"]
+                semantic_mask = semantic_masks[idx]
                 semantic_logits = out["semantic_logits"]
                 iou = mIOU(semantic_mask, semantic_logits)
                 iou_arr.append(iou)

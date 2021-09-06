@@ -2,19 +2,20 @@
 import os.path
 import sys
 from ignite.engine import Events, Engine
-import numpy as np
+
+from argparse import ArgumentParser
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
+import torch.multiprocessing as mp
+import torch.distributed as dist
 from torch.optim.lr_scheduler import MultiStepLR
 from utils.get_vkitti_dataset_full import get_dataloaders
 
 from utils.tensorize_batch import tensorize_batch
 from utils.convert_tensor_to_RGB import convert_tensor_to_RGB
 
-from utils.get_stuff_thing_classes import get_stuff_thing_classes
-from utils.data_loader_2_coco_ann import data_loader_2_coco_ann
+
 from eval_sem_seg import eval_sem_seg
 
 from torch.utils.tensorboard import SummaryWriter
@@ -26,108 +27,152 @@ import constants
 import models
 
 from datetime import datetime
-# from utils import map_hasty
-# from utils import get_splits
-# import matplotlib.pyplot as plt
+
 
 
 # %%
 
 
-writer = SummaryWriter()
+try:
+    writer = SummaryWriter()
+except:
+  print("writer already exists")
 
 
 
 
-def __update_model(trainer_engine, batch):
-    model.train()
-    optimizer.zero_grad()
+def __update_model_wrapper(model, optimizer, device):
+    def __update_model(trainer_engine, batch):
+        model.train()
+        optimizer.zero_grad()
 
-    imgs, ann, _, _, _, _, _, _, _ = batch
+        imgs, ann, _, _, _, _, _, _, _ = batch
 
-    imgs = list(img for img in imgs)
-    imgs = tensorize_batch(imgs, device)
+        imgs = list(img for img in imgs)
+        imgs = tensorize_batch(imgs, device)
 
-    annotations = [{k: v.to(device) for k, v in t.items()}
-                   for t in ann]
-    
-    # print("shape", imgs.shape, sparse_depth.shape, sparse_depth_gt.shape)
-    loss_dict = model(imgs, anns=annotations)
+        annotations = [{k: v.to(device) for k, v in t.items()}
+                    for t in ann]
+        
+        semantic_masks = list(map(lambda ann: ann['semantic_mask'], annotations))
+        
+        semantic_masks = tensorize_batch(semantic_masks, device)
+        
+        # print("shape", imgs.shape, sparse_depth.shape, sparse_depth_gt.shape)
+        loss_dict = model(imgs, semantic_masks=semantic_masks)
 
-    losses = sum(loss for loss in loss_dict.values())
+        losses = sum(loss for loss in loss_dict.values())
 
-    i = trainer_engine.state.iteration
-    writer.add_scalar("Loss/train/iteration", losses, i)
+        i = trainer_engine.state.iteration
+        writer.add_scalar("Loss/train/iteration", losses, i)
 
-    for key in loss_dict.keys():
-        writer.add_scalar("Loss/train/{}".format(key), loss_dict[key], i)
+        for key in loss_dict.keys():
+            writer.add_scalar("Loss/train/{}".format(key), loss_dict[key], i)
 
-    losses.backward()
+        losses.backward()
 
-    # nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0, norm_type=2)
+        # nn.utils.clip_grad_norm_(model.parameters(), max_norm=2.0, norm_type=2)
 
-    optimizer.step()
+        optimizer.step()
 
-    return losses
+        return losses
+    return __update_model
 
 
 # %% Define Event listeners
 
+def __log_training_loss_wrapper(optimizer, train_res_file):
+    def __log_training_loss(trainer_engine):
 
-def __log_training_loss(trainer_engine):
+        current_lr = None
 
-    current_lr = None
+        for param_group in optimizer.param_groups:
+            current_lr = param_group['lr']
 
-    for param_group in optimizer.param_groups:
-        current_lr = param_group['lr']
+        batch_loss = trainer_engine.state.output
+        state_epoch = trainer_engine.state.epoch
+        max_epochs = trainer_engine.state.max_epochs
+        i = trainer_engine.state.iteration
+        text = "Epoch {}/{} : {} - batch loss: {:.2f}, LR:{}".format(
+            state_epoch, max_epochs, i, batch_loss, current_lr)
 
-    batch_loss = trainer_engine.state.output
-    state_epoch = trainer_engine.state.epoch
-    max_epochs = trainer_engine.state.max_epochs
-    i = trainer_engine.state.iteration
-    text = "Epoch {}/{} : {} - batch loss: {:.2f}, LR:{}".format(
-        state_epoch, max_epochs, i, batch_loss, current_lr)
+        sys.stdout = open(train_res_file, 'a+')
+        print(text)
 
-    sys.stdout = open(train_res_file, 'a+')
-    print(text)
-
-    # writer.add_scalar("LR/train/iteration", current_lr, i)
-
-
-def __log_validation_results(trainer_engine):
-    batch_loss = trainer_engine.state.output
-    state_epoch = trainer_engine.state.epoch
-    max_epochs = trainer_engine.state.max_epochs
-    weights_path = "{}{}_loss_{}.pth".format(
-        constants.MODELS_LOC, config_kitti.MODEL, batch_loss)
-    state_dict = model.state_dict()
-    torch.save(state_dict, weights_path)
-
-    sys.stdout = open(train_res_file, 'a+')
-    print("Model weights filename: ", weights_path)
-    text = "Validation Results - Epoch {}/{} batch_loss: {:.2f}".format(
-        state_epoch, max_epochs, batch_loss)
-    sys.stdout = open(train_res_file, 'a+')
-    print(text)
-
-    miou, rgb_sample, mask_gt, mask_output = eval_sem_seg(model, data_loader_val, weights_path)
-
-    mask_gt = convert_tensor_to_RGB(mask_gt.unsqueeze(0)).squeeze(0)/255
-    mask_output = torch.argmax(mask_output, dim=0)
-    mask_output = convert_tensor_to_RGB(mask_output.unsqueeze(0)).squeeze(0)/255
-
-    writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
-    writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
-    writer.add_image("eval/src_img", rgb_sample, state_epoch, dataformats="CHW")
-    writer.add_image("eval/gt", mask_gt, state_epoch, dataformats="CHW")
-    writer.add_image("eval/out", mask_output, state_epoch, dataformats="CHW")
-
-    
-    scheduler.step()
+        # writer.add_scalar("LR/train/iteration", current_lr, i)
+    return __log_training_loss
 
 
-if __name__ == "__main__":
+def __log_validation_results_wrapper(model, optimizer, data_loader_val, scheduler, rank, train_res_file, device):
+    def __log_validation_results(trainer_engine):
+        batch_loss = trainer_engine.state.output
+        state_epoch = trainer_engine.state.epoch
+        max_epochs = trainer_engine.state.max_epochs
+        weights_path = "{}{}_loss_{}.pth".format(
+            constants.MODELS_LOC, config_kitti.MODEL, batch_loss)
+        
+        if rank == 0:
+            dict_model = {
+                'state_dict': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'epoch': state_epoch,
+            }
+            torch.save(dict_model, weights_path)
 
+        sys.stdout = open(train_res_file, 'a+')
+        print("Model weights filename: ", weights_path)
+        text = "Validation Results - Epoch {}/{} batch_loss: {:.2f}".format(
+            state_epoch, max_epochs, batch_loss)
+        sys.stdout = open(train_res_file, 'a+')
+        print(text)
+
+        miou, rgb_sample, mask_gt, mask_output = eval_sem_seg(model, data_loader_val, weights_path, device)
+
+        mask_gt = convert_tensor_to_RGB(mask_gt.unsqueeze(0), device).squeeze(0)/255
+        mask_output = torch.argmax(mask_output, dim=0)
+        mask_output = convert_tensor_to_RGB(mask_output.unsqueeze(0), device).squeeze(0)/255
+
+        writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
+        writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
+        writer.add_image("eval/src_img", rgb_sample, state_epoch, dataformats="CHW")
+        writer.add_image("eval/gt", mask_gt, state_epoch, dataformats="CHW")
+        writer.add_image("eval/out", mask_output, state_epoch, dataformats="CHW")
+
+        
+        scheduler.step()
+    return __log_validation_results
+
+def train(gpu, args):
+    # DP
+    args.gpu = gpu
+    print('gpu:', gpu)
+    # rank calculation for each process per gpu so that they can be identified uniquely.
+    # rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
+    rank = args.local_ranks * args.ngpus + gpu
+    print('rank:', rank)
+    # Boilerplate code to initialize the parallel prccess.
+    # It looks for ip-address and port which we have set as environ variable.
+    # If you don't want to set it in the main then you can pass it by replacing
+    # the init_method as ='tcp://<ip-address>:<port>' after the backend.
+    # More useful information can be found in
+    # https://yangkky.github.io/2019/07/08/distributed-pytorch-tutorial.html
+
+    dist.init_process_group(
+        backend='nccl',
+        init_method='env://',
+        world_size=args.world_size,
+        rank=rank
+    )
+    torch.manual_seed(0)
+    # start from the same randomness in different nodes. If you don't set it
+    # then networks can have different weights in different nodes when the
+    # training starts. We want exact copy of same network in all the nodes.
+    # Then it will progress from there.
+
+    # set the gpu for each processes
+    torch.cuda.set_device(args.gpu)
+
+    # Write results in text file
     now = datetime.now()
     timestamp = datetime.timestamp(now)
     res_filename = "results_{}_{}".format(config_kitti.MODEL, timestamp)
@@ -138,21 +183,24 @@ if __name__ == "__main__":
         training_results.write(
             "----- TRAINING RESULTS - Vkitti {} ----".format(config_kitti.MODEL)+"\n")
     # Set device
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    print("Device: ", device)
-    temp_variables.DEVICE = device
+    temp_variables.DEVICE = args.gpu
+    
+    print("Device: ", args.gpu)
     # Empty cuda cache
     torch.cuda.empty_cache()
 
     # Get model according to config
-    model = models.get_model_by_name(config_kitti.MODEL)
+    model = models.get_model_by_name(config_kitti.MODEL).cuda(args.gpu)
 
     if config_kitti.CHECKPOINT is not None:
         model.load_state_dict(torch.load(config_kitti.CHECKPOINT))
     # move model to the right device
-    model.to(device)
 
-    print("Allocated memory: ", torch.cuda.memory_allocated(device=device))
+    model = torch.nn.parallel.DistributedDataParallel(
+        model, device_ids=[args.gpu], find_unused_parameters=True
+    )
+
+    print("Allocated memory: ", torch.cuda.memory_allocated(device=args.gpu))
     # Define params
     params = [p for p in model.parameters() if p.requires_grad]
 
@@ -162,20 +210,17 @@ if __name__ == "__main__":
     optimizer = torch.optim.SGD(
         params, lr=0.0016, momentum=0.9, weight_decay=0.00005)
 
-#     # Set Categories
-    ann_file = os.path.join(os.path.dirname(
-        os.path.abspath(__file__)), config_kitti.COCO_ANN)
-    all_categories, stuff_categories, thing_categories = get_stuff_thing_classes(
-        ann_file)
-
-
-
     data_loader_train = None
     data_loader_val = None
 
     if config_kitti.USE_PREEXISTING_DATA_LOADERS:
         data_loader_train = torch.load(config_kitti.DATA_LOADER_TRAIN_FILANME)
         data_loader_val = torch.load(config_kitti.DATA_LOADER_VAL_FILENAME)
+
+        # # Dataloader to coco ann for evaluation purposes
+        # annotation = os.path.join(os.path.dirname(os.path.abspath(
+        #     __file__)), config_kitti.COCO_ANN)
+        # data_loader_2_coco_ann(config_kitti.DATA_LOADER_VAL_FILENAME, annotation)
 
     else:
 
@@ -188,11 +233,14 @@ if __name__ == "__main__":
         annotation = os.path.join(os.path.dirname(os.path.abspath(
             __file__)), config_kitti.COCO_ANN)
 
+ 
         data_loader_train, data_loader_val = get_dataloaders(
             config_kitti.BATCH_SIZE,
             imgs_root,
             depth_root,
             annotation,
+            num_replicas=args.world_size,
+            rank=rank,
             split=True,
             val_size=config_kitti.VAL_SIZE,
             n_samples=config_kitti.MAX_TRAINING_SAMPLES)
@@ -207,15 +255,41 @@ if __name__ == "__main__":
         torch.save(data_loader_train, data_loader_train_filename)
         torch.save(data_loader_val, data_loader_val_filename)
 
+        # Dataloader to coco ann for evaluation purposes
+        # data_loader_2_coco_ann(data_loader_val_filename, annotation)
+
     # ---------------TRAIN--------------------------------------
-    print("Starting training...")
     scheduler = MultiStepLR(optimizer, milestones=[65, 80, 85, 90], gamma=0.1)
-    ignite_engine = Engine(__update_model)
+    ignite_engine = Engine(__update_model_wrapper(model, optimizer, args.gpu))
 
     # ignite_engine.add_event_handler(Events.ITERATION_STARTED, scheduler)
     ignite_engine.add_event_handler(
-        Events.ITERATION_COMPLETED(every=50), __log_training_loss)
+        Events.ITERATION_COMPLETED(every=1), __log_training_loss_wrapper(optimizer, train_res_file))
     ignite_engine.add_event_handler(
-        Events.EPOCH_COMPLETED, __log_validation_results)
+        Events.EPOCH_COMPLETED, __log_validation_results_wrapper(model, optimizer, data_loader_val, scheduler, rank, train_res_file, gpu))
     ignite_engine.run(data_loader_train, config_kitti.MAX_EPOCHS)
     writer.flush()
+
+if __name__ == "__main__":
+
+    parser = ArgumentParser()
+    parser.add_argument('--nodes', default=1, type=int)
+    parser.add_argument('--local_ranks', default=0, type=int,
+                        help="Node's order number in [0, num_of_nodes-1]")
+    parser.add_argument('--ip_adress', type=str, required=True,
+                        help='ip address of the host node')
+
+    parser.add_argument('--ngpus', default=1, type=int,
+                        help='number of gpus per node')
+
+    args = parser.parse_args()
+    # Total number of gpus availabe to us.
+    args.world_size = args.ngpus * args.nodes
+    # add the ip address to the environment variable so it can be easily avialbale
+    os.environ['MASTER_ADDR'] = args.ip_adress
+    print("ip_adress is", args.ip_adress)
+    os.environ['MASTER_PORT'] = '12355'
+    os.environ['WORLD_SIZE'] = str(args.world_size)
+    # nprocs: number of process which is equal to args.ngpu here
+    mp.spawn(train, nprocs=args.ngpus, args=(args,))
+

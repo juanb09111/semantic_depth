@@ -19,11 +19,7 @@ import matplotlib.pyplot as plt
 
 
 
-device = torch.device(
-    'cuda') if torch.cuda.is_available() else torch.device('cpu')
-print(device)
 
-temp_variables.DEVICE = device
 torch.cuda.empty_cache()
 
 
@@ -59,14 +55,12 @@ def mIOU(label, pred):
 
 
 
-def eval_sem_seg(model, data_loader_val, weights_file):
+def eval_sem_seg(model, data_loader_val, weights_file, device):
 
-    device = torch.device(
-        'cuda') if torch.cuda.is_available() else torch.device('cpu')
-    
+   
     # load weights
     print("eval depth completion weights: ", weights_file)
-    model.load_state_dict(torch.load(weights_file))
+    model.load_state_dict(torch.load(weights_file)["state_dict"])
     # move model to the right device
     model.to(device)
 
@@ -78,17 +72,22 @@ def eval_sem_seg(model, data_loader_val, weights_file):
         annotations = [{k: v.to(device) for k, v in t.items()}
                        for t in anns]
 
+        semantic_masks = list(
+            map(lambda ann: ann['semantic_mask'], annotations))
+
+        semantic_masks = tensorize_batch(semantic_masks, device)
+
         imgs = tensorize_batch(imgs, device)
         model.eval()
 
         with torch.no_grad():
-            outputs = model(imgs, anns=annotations)
+            outputs = model(imgs, semantic_masks=semantic_masks)
 
             for idx, out in enumerate(outputs):
 
 
                 #Calculate miou
-                semantic_mask = anns[idx]["semantic_mask"]
+                semantic_mask = semantic_masks[idx]
                 semantic_logits = out["semantic_logits"]
                 iou = mIOU(semantic_mask, semantic_logits)
                 iou_arr.append(iou)

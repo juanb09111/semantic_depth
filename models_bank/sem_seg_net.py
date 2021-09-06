@@ -9,7 +9,7 @@ import torchvision
 from backbones_bank.tunned_maskrcnn.utils.backbone_utils import resnet_fpn_backbone
 
 import config_kitti
-import temp_variables
+
 
 
 
@@ -23,7 +23,7 @@ class SemsegNet(nn.Module):
 
 
 
-        self.backbone = resnet_fpn_backbone('resnet50', True)
+        self.backbone = resnet_fpn_backbone('resnet50', False)
         # backbone.body.conv1 = nn.Conv2d(48, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 
 
@@ -43,7 +43,7 @@ class SemsegNet(nn.Module):
         for module in self.children():
             module.to(device)
 
-    def forward(self, images, anns=None):
+    def forward(self, images, semantic_masks=None):
 
         
         losses = {}
@@ -57,10 +57,10 @@ class SemsegNet(nn.Module):
   
         if self.training:
 
-            semantic_masks = list(
-                map(lambda ann: ann['semantic_mask'], anns))
-            semantic_masks = tensorize_batch(
-                semantic_masks, temp_variables.DEVICE)
+            # semantic_masks = list(
+            #     map(lambda ann: ann['semantic_mask'], anns))
+            # semantic_masks = tensorize_batch(
+            #     semantic_masks, temp_variables.DEVICE)
 
             losses["semantic_loss"] = F.cross_entropy(
                 semantic_logits, semantic_masks.long())

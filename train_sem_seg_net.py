@@ -111,7 +111,7 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, schedule
         state_epoch = trainer_engine.state.epoch
         max_epochs = trainer_engine.state.max_epochs
         weights_path = "{}{}_loss_{}.pth".format(
-            constants.MODELS_LOC, config_kitti.MODEL, batch_loss)
+            constants.MODELS_LOC, "SemsegNet", batch_loss)
         
         if rank == 0:
             dict_model = {
@@ -177,13 +177,13 @@ def train(gpu, args):
 
     # Write results in text file
     
-    res_filename = "results_{}_{}".format(config_kitti.MODEL, timestamp)
+    res_filename = "results_{}_{}".format("SemsegNet", timestamp)
     train_res_file = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), constants.RES_LOC, res_filename)
 
     with open(train_res_file, "w+") as training_results:
         training_results.write(
-            "----- TRAINING RESULTS - Vkitti {} ----".format(config_kitti.MODEL)+"\n")
+            "----- TRAINING RESULTS - Vkitti {} ----".format("SemsegNet")+"\n")
     # Set device
     temp_variables.DEVICE = args.gpu
     
@@ -192,7 +192,7 @@ def train(gpu, args):
     torch.cuda.empty_cache()
 
     # Get model according to config
-    model = models.get_model_by_name(config_kitti.MODEL).cuda(args.gpu)
+    model = models.get_model_by_name("SemsegNet").cuda(args.gpu)
 
     if config_kitti.CHECKPOINT is not None:
         model.load_state_dict(torch.load(config_kitti.CHECKPOINT))

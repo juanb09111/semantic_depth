@@ -112,6 +112,7 @@ def __log_training_loss_wrapper(optimizer, train_res_file):
         print(text)
 
         # writer.add_scalar("LR/train/iteration", current_lr, i)
+    return __log_training_loss
 
 
 def __log_validation_results_wrapper(model, optimizer, data_loader_val, scheduler, rank, train_res_file, device):
@@ -158,6 +159,7 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, schedule
             writer.add_image("eval/out", out_depth_numpy, state_epoch, dataformats="HW")
 
         scheduler.step()
+    return __log_validation_results
         
 def train(gpu, args):
     # DP

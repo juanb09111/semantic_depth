@@ -40,7 +40,7 @@ except:
 now = datetime.now()
 timestamp = datetime.timestamp(now)
 
-def __update_model_wrapper(model, optimizer, device):
+def __update_model_wrapper(model, optimizer, device, rank):
     def __update_model(trainer_engine, batch):
         model.train()
         optimizer.zero_grad()
@@ -80,10 +80,12 @@ def __update_model_wrapper(model, optimizer, device):
         losses = sum(loss for loss in loss_dict.values())
 
         i = trainer_engine.state.iteration
-        writer.add_scalar("Loss/train/iteration", losses, i)
 
-        for key in loss_dict.keys():
-            writer.add_scalar("Loss/train/{}".format(key), loss_dict[key], i)
+        if rank==0:
+            writer.add_scalar("Loss/train/iteration", losses, i)
+
+            for key in loss_dict.keys():
+                writer.add_scalar("Loss/train/{}".format(key), loss_dict[key], i)
 
         losses.backward()
 
@@ -149,36 +151,37 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, schedule
             model, data_loader_val, weights_path, device)
         sys.stdout = open(train_res_file, 'a+')
 
-        writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
-        writer.add_scalar("rmse/train/epoch", rmse, state_epoch)
-        writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
+        if rank == 0:
+            writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
+            writer.add_scalar("rmse/train/epoch", rmse, state_epoch)
+            writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
 
-        # write images
-        sparse_depth_gt_sample = sparse_depth_gt_sample.squeeze_(0)
-        sparse_depth_gt_sample = sparse_depth_gt_sample.cpu().numpy()/255
-        out_depth_numpy = out_depth.cpu().numpy()/255
-        sparse_depth_gt_full = sparse_depth_gt_full.cpu().numpy()/255
+            # write images
+            sparse_depth_gt_sample = sparse_depth_gt_sample.squeeze_(0)
+            sparse_depth_gt_sample = sparse_depth_gt_sample.cpu().numpy()/255
+            out_depth_numpy = out_depth.cpu().numpy()/255
+            sparse_depth_gt_full = sparse_depth_gt_full.cpu().numpy()/255
 
-        writer.add_image("eval_depth/src_img", rgb_sample,
-                         state_epoch, dataformats="CHW")
-        writer.add_image("eval_depth/gt_full", sparse_depth_gt_full,
-                         state_epoch, dataformats="HW")
-        writer.add_image("eval_depth/gt", sparse_depth_gt_sample,
-                         state_epoch, dataformats="HW")
-        writer.add_image("eval_depth/out", out_depth_numpy,
-                         state_epoch, dataformats="HW")
+            writer.add_image("eval_depth/src_img", rgb_sample,
+                            state_epoch, dataformats="CHW")
+            writer.add_image("eval_depth/gt_full", sparse_depth_gt_full,
+                            state_epoch, dataformats="HW")
+            writer.add_image("eval_depth/gt", sparse_depth_gt_sample,
+                            state_epoch, dataformats="HW")
+            writer.add_image("eval_depth/out", out_depth_numpy,
+                            state_epoch, dataformats="HW")
 
-        mask_gt = convert_tensor_to_RGB(mask_gt.unsqueeze(0), device).squeeze(0)/255
-        mask_output = torch.argmax(mask_output, dim=0)
-        mask_output = convert_tensor_to_RGB(
-            mask_output.unsqueeze(0),device).squeeze(0)/255
+            mask_gt = convert_tensor_to_RGB(mask_gt.unsqueeze(0), device).squeeze(0)/255
+            mask_output = torch.argmax(mask_output, dim=0)
+            mask_output = convert_tensor_to_RGB(
+                mask_output.unsqueeze(0),device).squeeze(0)/255
 
-        writer.add_image("eval_semantic/src_img", rgb_sample,
-                         state_epoch, dataformats="CHW")
-        writer.add_image("eval_semantic/gt", mask_gt,
-                         state_epoch, dataformats="CHW")
-        writer.add_image("eval_semantic/out", mask_output,
-                         state_epoch, dataformats="CHW")
+            writer.add_image("eval_semantic/src_img", rgb_sample,
+                            state_epoch, dataformats="CHW")
+            writer.add_image("eval_semantic/gt", mask_gt,
+                            state_epoch, dataformats="CHW")
+            writer.add_image("eval_semantic/out", mask_output,
+                            state_epoch, dataformats="CHW")
 
         # semantic seg results
         scheduler.step()
@@ -302,7 +305,7 @@ def train(gpu, args):
 
     # ---------------TRAIN--------------------------------------
     scheduler = MultiStepLR(optimizer, milestones=[65, 80, 85, 90], gamma=0.1)
-    ignite_engine = Engine(__update_model_wrapper(model, optimizer, args.gpu))
+    ignite_engine = Engine(__update_model_wrapper(model, optimizer, args.gpu, rank))
 
     # ignite_engine.add_event_handler(Events.ITERATION_STARTED, scheduler)
     ignite_engine.add_event_handler(
@@ -310,7 +313,9 @@ def train(gpu, args):
     ignite_engine.add_event_handler(
         Events.EPOCH_COMPLETED, __log_validation_results_wrapper(model, optimizer, data_loader_val, scheduler, rank, train_res_file, gpu))
     ignite_engine.run(data_loader_train, config_kitti.MAX_EPOCHS)
-    writer.flush()
+
+    if rank ==0:
+        writer.flush()
 
 
 if __name__ == "__main__":

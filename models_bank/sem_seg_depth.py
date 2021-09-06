@@ -197,7 +197,7 @@ class Semseg_Depth(nn.Module):
         )
 
         # Semantic Segmentation 
-        self.backbone = resnet_fpn_backbone('resnet50', True)
+        self.backbone = resnet_fpn_backbone('resnet50', False)
         # backbone.body.conv1 = nn.Conv2d(48, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 
 

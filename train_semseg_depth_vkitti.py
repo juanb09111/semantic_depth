@@ -30,8 +30,10 @@ from datetime import datetime
 
 # %%
 
-
-writer = SummaryWriter()
+try:
+    writer = SummaryWriter()
+except:
+  print("writer already exists")
 
 
 # %%

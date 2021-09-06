@@ -412,7 +412,7 @@ def get_datasets(imgs_root, depth_root, annotation, split=False, val_size=0.20, 
         if len_train < 1 or len_val < 1:
             raise AssertionError("datasets length cannot be zero")
         train_set, val_set = torch.utils.data.random_split(
-            vkitti_dataset, [len_train, len_val])
+            vkitti_dataset, [len_train, len_val], generator=torch.Generator().manual_seed(42))
         return train_set, val_set
     else:
         return vkitti_dataset
@@ -429,21 +429,21 @@ def get_dataloaders(batch_size, imgs_root, depth_root, annotation, num_replicas,
             imgs_root, depth_root, annotation, split=True, val_size=0.20, n_samples=n_samples)
 
         train_sampler = torch.utils.data.distributed.DistributedSampler(
-            train_set, num_replicas=num_replicas, rank=rank)
+            train_set, num_replicas=num_replicas, rank=rank, shuffle=True, seed=0)
 
         val_sampler = torch.utils.data.distributed.DistributedSampler(
-            val_set, num_replicas=num_replicas, rank=rank)
+            val_set, num_replicas=num_replicas, rank=rank, shuffle=True, seed=0)
 
         data_loader_train = torch.utils.data.DataLoader(train_set,
                                                         batch_size=batch_size,
-                                                        # num_workers=0,
+                                                        num_workers=4,
                                                         collate_fn=collate_fn,
                                                         drop_last=True,
                                                         sampler=train_sampler)
 
         data_loader_val = torch.utils.data.DataLoader(val_set,
                                                       batch_size=batch_size,
-                                                    #   num_workers=0,
+                                                      num_workers=4,
                                                       collate_fn=collate_fn,
                                                       drop_last=True,
                                                       sampler=val_sampler)

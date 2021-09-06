@@ -13,6 +13,7 @@ import glob
 import random
 import matplotlib.pyplot as plt
 # %%
+torch.manual_seed(0)
 
 
 def get_vkitti_files(dirName, ext):
@@ -412,7 +413,7 @@ def get_datasets(imgs_root, depth_root, annotation, split=False, val_size=0.20, 
         if len_train < 1 or len_val < 1:
             raise AssertionError("datasets length cannot be zero")
         train_set, val_set = torch.utils.data.random_split(
-            vkitti_dataset, [len_train, len_val], generator=torch.Generator().manual_seed(42))
+            vkitti_dataset, [len_train, len_val])
         return train_set, val_set
     else:
         return vkitti_dataset

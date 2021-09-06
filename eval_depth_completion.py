@@ -1,5 +1,5 @@
 import config_kitti
-import temp_variables
+
 import constants
 import models
 import numpy as np
@@ -16,18 +16,14 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 
 
-device = torch.device(
-    'cuda') if torch.cuda.is_available() else torch.device('cpu')
-print(device)
 
-temp_variables.DEVICE = device
 torch.cuda.empty_cache()
 
 
-def RMSE(sparse_depth_gt, pred):
+def RMSE(sparse_depth_gt, pred, device):
     with torch.no_grad():
-        mask_gt = torch.where(sparse_depth_gt > 0, torch.tensor((1), device=temp_variables.DEVICE,
-                                                                dtype=torch.float64), torch.tensor((0), device=temp_variables.DEVICE, dtype=torch.float64))
+        mask_gt = torch.where(sparse_depth_gt > 0, torch.tensor((1), device=device,
+                                                                dtype=torch.float64), torch.tensor((0), device=device, dtype=torch.float64))
         mask_gt = mask_gt.squeeze_(1)
 
         sparse_depth_gt = sparse_depth_gt.squeeze_(0)  # remove C dimension there's only one
@@ -67,12 +63,12 @@ def RMSE(sparse_depth_gt, pred):
     return res
 
 
-def eval_depth(model, data_loader_val, weights_file):
+def eval_depth(model, data_loader_val, weights_file, device):
 
 
     # load weights
     print("eval depth completion weights: ", weights_file)
-    model.load_state_dict(torch.load(weights_file))
+    model.load_state_dict(torch.load(weights_file)["state_dict"])
     # move model to the right device
     model.to(device)
 
@@ -117,7 +113,7 @@ def eval_depth(model, data_loader_val, weights_file):
                 out_depth = outputs[idx]["depth"]
                 
                 # --------------------------------------
-                rmse = RMSE(sparse_depth_gt[idx], out_depth)
+                rmse = RMSE(sparse_depth_gt[idx], out_depth, device)
                 rmse_arr.append(rmse.cpu().data.numpy())
                 # print(sparse_depth_gt.shape)
                 # -----------------------------------------
@@ -125,11 +121,11 @@ def eval_depth(model, data_loader_val, weights_file):
     return np.mean(rmse_arr), imgs[0], sparse_depth_gt[0], sparse_depth_gt_full[0].squeeze_(0), outputs[0]["depth"]
 
 
-if __name__ == "__main__":
-    torch.cuda.empty_cache()
+# if __name__ == "__main__":
+#     torch.cuda.empty_cache()
 
-    data_loader_val = torch.load(config_kitti.DATA_LOADER_VAL_FILENAME)
+#     data_loader_val = torch.load(config_kitti.DATA_LOADER_VAL_FILENAME)
 
-    model = models.get_model_by_name(config_kitti.MODEL)
+#     model = models.get_model_by_name(config_kitti.MODEL)
    
-    eval_depth(model, data_loader_val, config_kitti.MODEL_WEIGHTS_FILENAME)
+#     eval_depth(model, data_loader_val, config_kitti.MODEL_WEIGHTS_FILENAME)

@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from common_blocks.depth_wise_conv import depth_wise_conv
 from common_blocks.depth_wise_sep_conv import depth_wise_sep_conv
 from common_blocks.continuous_conv import ContinuousConvolution
-import temp_variables
+
 import config_kitti
 import matplotlib.pyplot as plt
 
@@ -194,9 +194,9 @@ class FuseNet(nn.Module):
             
             # print("model training")
             # print("training", out.max(), out.min())
-            
+            device = sparse_depth_gt.get_device()
 
-            mask_gt = torch.where(sparse_depth_gt > 0, torch.tensor((1), device=temp_variables.DEVICE, dtype=torch.float64), torch.tensor((0), device=temp_variables.DEVICE, dtype=torch.float64))
+            mask_gt = torch.where(sparse_depth_gt > 0, torch.tensor((1), device=device, dtype=torch.float64), torch.tensor((0), device=device, dtype=torch.float64))
             mask_gt = mask_gt.squeeze_(1)
             mask_gt.requires_grad_(True)
 

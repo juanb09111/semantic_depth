@@ -38,7 +38,8 @@ try:
 except:
   print("writer already exists")
 
-
+now = datetime.now()
+timestamp = datetime.timestamp(now)
 
 
 def __update_model_wrapper(model, optimizer, device):
@@ -147,8 +148,8 @@ def train(gpu, args):
     args.gpu = gpu
     print('gpu:', gpu)
     # rank calculation for each process per gpu so that they can be identified uniquely.
-    # rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
-    rank = args.local_ranks * args.ngpus + gpu
+    rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
+    # rank = args.local_ranks * args.ngpus + gpu
     print('rank:', rank)
     # Boilerplate code to initialize the parallel prccess.
     # It looks for ip-address and port which we have set as environ variable.
@@ -173,8 +174,7 @@ def train(gpu, args):
     torch.cuda.set_device(args.gpu)
 
     # Write results in text file
-    now = datetime.now()
-    timestamp = datetime.timestamp(now)
+    
     res_filename = "results_{}_{}".format(config_kitti.MODEL, timestamp)
     train_res_file = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), constants.RES_LOC, res_filename)
@@ -279,7 +279,7 @@ if __name__ == "__main__":
     parser.add_argument('--ip_adress', type=str, required=True,
                         help='ip address of the host node')
 
-    parser.add_argument('--ngpus', default=1, type=int,
+    parser.add_argument('--ngpus', default=4, type=int,
                         help='number of gpus per node')
 
     args = parser.parse_args()

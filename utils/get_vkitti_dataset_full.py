@@ -430,10 +430,10 @@ def get_dataloaders(batch_size, imgs_root, depth_root, annotation, num_replicas,
             imgs_root, depth_root, annotation, split=True, val_size=0.20, n_samples=n_samples)
 
         train_sampler = torch.utils.data.distributed.DistributedSampler(
-            train_set, num_replicas=num_replicas, rank=rank, shuffle=True, seed=0)
+            train_set, num_replicas=num_replicas, rank=rank, shuffle=True)
 
         val_sampler = torch.utils.data.distributed.DistributedSampler(
-            val_set, num_replicas=num_replicas, rank=rank, shuffle=True, seed=0)
+            val_set, num_replicas=num_replicas, rank=rank, shuffle=True)
 
         data_loader_train = torch.utils.data.DataLoader(train_set,
                                                         batch_size=batch_size,

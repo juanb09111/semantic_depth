@@ -11,6 +11,7 @@ import train_semseg_depth_v2
 import train_semseg_depth_v3
 import train_semseg_depth
 import train_semseg_depth_input
+import train_semseg_depth_v2_loss_sum
 from models import MODELS
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 
@@ -29,6 +30,8 @@ def get_train_loop(model_name):
         return train_semseg_depth_v3.train
     if model_name == "SemsegNet_DepthInput":
         return train_semseg_depth_input.train
+    if model_name == "Semseg_Depth_v2_loss_sum":
+        return train_semseg_depth_v2_loss_sum.train
           
 
 if __name__ == "__main__":

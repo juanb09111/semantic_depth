@@ -5,6 +5,7 @@ import sys
 import torch.multiprocessing as mp
 from argparse import ArgumentParser
 import train_fusenet
+import train_fusenet_v2
 import train_sem_seg_net
 import train_semseg_depth_v2
 import train_semseg_depth_v3
@@ -16,6 +17,8 @@ from models import MODELS
 def get_train_loop(model_name):
     if model_name == "FuseNet":
         return train_fusenet.train
+    if model_name == "FuseNet_v2":
+        return train_fusenet_v2.train
     if model_name == "SemsegNet":
         return train_sem_seg_net.train
     if model_name == "Semseg_Depth":

@@ -3,6 +3,7 @@ import json
 import constants
 from models_bank.efusion_ps_v3_depth_head_2 import EfusionPS as EfusionPS_V3_depth
 from models_bank.fusenet import FuseNet
+from models_bank.fusenet_v2 import FuseNet_v2
 from models_bank.sem_seg_net import SemsegNet
 from models_bank.sem_seg_depth import Semseg_Depth
 from models_bank.sem_seg_depth_v2 import Semseg_Depth as Semseg_Depth_v2
@@ -15,7 +16,8 @@ MODELS = ["FuseNet",
           "Semseg_Depth",
           "Semseg_Depth_v2",
           "Semseg_Depth_v3",
-          "SemsegNet_DepthInput"]
+          "SemsegNet_DepthInput",
+          "FuseNet_v2"]
 
 
 def get_model_by_name(model_name):
@@ -32,6 +34,10 @@ def get_model_by_name(model_name):
 
     if model_name is "FuseNet":
         return FuseNet(config_kitti.K_NUMBER,
+                       n_number=config_kitti.N_NUMBER)
+    
+    if model_name is "FuseNet_v2":
+        return FuseNet_v2(config_kitti.K_NUMBER,
                        n_number=config_kitti.N_NUMBER)
 
     if model_name is "SemsegNet":

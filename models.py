@@ -9,6 +9,12 @@ from models_bank.sem_seg_depth_v2 import Semseg_Depth as Semseg_Depth_v2
 from models_bank.sem_seg_depth_v3 import Semseg_Depth as Semseg_Depth_v3
 import config_kitti
 
+MODELS = ["FuseNet",
+          "SemsegNet",
+          "Semseg_Depth",
+          "Semseg_Depth_v2",
+          "Semseg_Depth_v3"]
+
 
 def get_model_by_name(model_name):
     if model_name is "EfusionPS_V3_depth":
@@ -39,19 +45,19 @@ def get_model_by_name(model_name):
                             config_kitti.NUM_STUFF_CLASSES,
                             config_kitti.CROP_OUTPUT_SIZE,
                             n_number=config_kitti.N_NUMBER)
-    
+
     if model_name is "Semseg_Depth_v2":
         return Semseg_Depth_v2(config_kitti.K_NUMBER,
-                            config_kitti.BACKBONE_OUT_CHANNELS,
-                            config_kitti.NUM_THING_CLASSES,
-                            config_kitti.NUM_STUFF_CLASSES,
-                            config_kitti.CROP_OUTPUT_SIZE,
-                            n_number=config_kitti.N_NUMBER)
+                               config_kitti.BACKBONE_OUT_CHANNELS,
+                               config_kitti.NUM_THING_CLASSES,
+                               config_kitti.NUM_STUFF_CLASSES,
+                               config_kitti.CROP_OUTPUT_SIZE,
+                               n_number=config_kitti.N_NUMBER)
 
     if model_name is "Semseg_Depth_v3":
         return Semseg_Depth_v3(config_kitti.K_NUMBER,
-                            config_kitti.BACKBONE_OUT_CHANNELS,
-                            config_kitti.NUM_THING_CLASSES,
-                            config_kitti.NUM_STUFF_CLASSES,
-                            config_kitti.CROP_OUTPUT_SIZE,
-                            n_number=config_kitti.N_NUMBER)
+                               config_kitti.BACKBONE_OUT_CHANNELS,
+                               config_kitti.NUM_THING_CLASSES,
+                               config_kitti.NUM_STUFF_CLASSES,
+                               config_kitti.CROP_OUTPUT_SIZE,
+                               n_number=config_kitti.N_NUMBER)

@@ -49,9 +49,12 @@ echo "r$SLURM_NODEID master: $MASTER_ADDR"
 
 echo "r$SLURM_NODEID Launching python script"
 
-
+#train params
+MODEL_NAME=$1
+BATCH_SIZE=$2
+CHECKPOINT=$3
 # Finally run your job. Here's an example of a python script.
 
 # python eval_coco.py $SLURM_TASK_ARRAY_ID
 # python train_efusion_vkitti.py $SLURM_TASK_ARRAY_ID
-python train_semseg_depth.py --nodes=1 --ngpus=4 --ip_adress $ip1 $SLURM_TASK_ARRAY_ID
+python train.py --model_name=$MODEL_NAME --batch_size=$BATCH_SIZE --checkpoint=$CHECKPOINT --nodes=1 --ngpus=1 --ip_adress $ip1 $SLURM_TASK_ARRAY_ID

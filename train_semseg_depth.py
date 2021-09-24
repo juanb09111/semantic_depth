@@ -188,8 +188,8 @@ def train(gpu, args):
     args.gpu = gpu
     print('gpu:', gpu)
     # rank calculation for each process per gpu so that they can be identified uniquely.
-    rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
-    # rank = args.local_ranks * args.ngpus + gpu
+    # rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
+    rank = args.local_ranks * args.ngpus + gpu
     print('rank:', rank)
     # Boilerplate code to initialize the parallel prccess.
     # It looks for ip-address and port which we have set as environ variable.
@@ -248,14 +248,14 @@ def train(gpu, args):
     optimizer = torch.optim.SGD(
         params, lr=0.0016, momentum=0.9, weight_decay=0.00005)
 
-    if config_kitti.CHECKPOINT_SEMSEG_DEPTH is not None:
+    if args.checkpoint is not None:
         dist.barrier()
         sys.stdout = open(train_res_file, 'a+')
-        print("Loading checkpoint from {} to {}".format(0, rank), config_kitti.CHECKPOINT_SEMSEG_DEPTH)
+        print("Loading checkpoint from {} to {}".format(0, rank), args.checkpoint)
         # map location
         map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
 
-        checkpoint = torch.load(config_kitti.CHECKPOINT_SEMSEG_DEPTH, map_location=map_location)
+        checkpoint = torch.load(args.checkpoint, map_location=map_location)
         optimizer.load_state_dict(checkpoint['optimizer'])
         model.load_state_dict(checkpoint['state_dict'])
     
@@ -284,7 +284,7 @@ def train(gpu, args):
 
  
         data_loader_train, data_loader_val = get_dataloaders(
-            config_kitti.BATCH_SIZE,
+            args.batch_size,
             imgs_root,
             depth_root,
             annotation,
@@ -315,7 +315,7 @@ def train(gpu, args):
     scheduler = MultiStepLR(optimizer, milestones=[65, 80, 85, 90], gamma=0.1)
     ignite_engine = Engine(__update_model_wrapper(model, optimizer, args.gpu, rank, writer))
     
-    if  config_kitti.CHECKPOINT_SEMSEG_DEPTH is not None:
+    if  args.checkpoint is not None:
         epoch = checkpoint['epoch']
         ignite_engine.add_event_handler(Events.STARTED, __setup_state_wrapper(epoch))
 

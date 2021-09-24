@@ -1,14 +1,4 @@
 # All dirs relative to root
-BATCH_SIZE = 2
-
-# MODEL =  "EfusionPS_V3_depth" 
-MODEL = "FuseNet"
-# CHECKPOINT = None
-CHECKPOINT_SEMSEG_DEPTH = "tmp/models/Semseg_Depth_loss_0.3520721461639244.pth"
-CHECKPOINT_SEMSEG_DEPTH_v2 = "tmp/models/Semseg_Depth_v2_loss_0.42286657051620236.pth"
-CHECKPOINT_SEMSEG_DEPTH_v3 = "tmp/models/Semseg_Depth_v3_loss_0.506784134356471.pth"
-CHECKPOINT_SEMSEG = "tmp/models/SemsegNet_loss_0.21476173400878906.pth"
-CHECKPOINT_FUSENET = "tmp/models/FuseNet_loss_0.2816952901151524.pth"
 
 
 BACKBONE = "resnet50" # This is the only one available at the moment

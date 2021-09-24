@@ -166,8 +166,8 @@ def train(gpu, args):
     args.gpu = gpu
     print('gpu:', gpu)
     # rank calculation for each process per gpu so that they can be identified uniquely.
-    rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
-    # rank = args.local_ranks * args.ngpus + gpu
+    # rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
+    rank = args.local_ranks * args.ngpus + gpu
     print('rank:', rank)
     # Boilerplate code to initialize the parallel prccess.
     # It looks for ip-address and port which we have set as environ variable.
@@ -228,14 +228,14 @@ def train(gpu, args):
         params, lr=0.0016, momentum=0.9, weight_decay=0.00005)
 
 
-    if config_kitti.CHECKPOINT_FUSENET is not None:
+    if args.checkpoint is not None:
         dist.barrier()
         sys.stdout = open(train_res_file, 'a+')
-        print("Loading checkpoint from {} to {}".format(0, rank), config_kitti.CHECKPOINT_FUSENET)
+        print("Loading checkpoint from {} to {}".format(0, rank), args.checkpoint)
         # map location
         map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
 
-        checkpoint = torch.load(config_kitti.CHECKPOINT_FUSENET, map_location=map_location)
+        checkpoint = torch.load(args.checkpoint, map_location=map_location)
         optimizer.load_state_dict(checkpoint['optimizer'])
         model.load_state_dict(checkpoint['state_dict'])
     
@@ -269,7 +269,7 @@ def train(gpu, args):
 
  
         data_loader_train, data_loader_val = get_dataloaders(
-            config_kitti.BATCH_SIZE,
+            args.batch_size,
             imgs_root,
             depth_root,
             annotation,
@@ -300,7 +300,7 @@ def train(gpu, args):
     scheduler = MultiStepLR(optimizer, milestones=[65, 80, 85, 90], gamma=0.1)
     ignite_engine = Engine(__update_model_wrapper(model, optimizer, args.gpu, rank, writer))
 
-    if  config_kitti.CHECKPOINT_FUSENET is not None:
+    if  args.checkpoint is not None:
         epoch = checkpoint['epoch']
         ignite_engine.add_event_handler(Events.STARTED, __setup_state_wrapper(epoch))
 
@@ -312,27 +312,3 @@ def train(gpu, args):
 
     if rank==0:
         writer.flush()
-
-
-if __name__ == "__main__":
-
-    parser = ArgumentParser()
-    parser.add_argument('--nodes', default=1, type=int)
-    parser.add_argument('--local_ranks', default=0, type=int,
-                        help="Node's order number in [0, num_of_nodes-1]")
-    parser.add_argument('--ip_adress', type=str, required=True,
-                        help='ip address of the host node')
-
-    parser.add_argument('--ngpus', default=4, type=int,
-                        help='number of gpus per node')
-
-    args = parser.parse_args()
-    # Total number of gpus availabe to us.
-    args.world_size = args.ngpus * args.nodes
-    # add the ip address to the environment variable so it can be easily avialbale
-    os.environ['MASTER_ADDR'] = args.ip_adress
-    print("ip_adress is", args.ip_adress)
-    os.environ['MASTER_PORT'] = '12355'
-    os.environ['WORLD_SIZE'] = str(args.world_size)
-    # nprocs: number of process which is equal to args.ngpu here
-    mp.spawn(train, nprocs=args.ngpus, args=(args,))

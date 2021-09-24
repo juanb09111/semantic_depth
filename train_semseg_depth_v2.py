@@ -1,12 +1,12 @@
 # %%
+import os
 import os.path
 import sys
 from ignite.engine import Events, Engine
-
+import numpy as np
 from argparse import ArgumentParser
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 import torch
-import torch.nn as nn
 import torch.multiprocessing as mp
 import torch.distributed as dist
 from torch.optim.lr_scheduler import MultiStepLR
@@ -15,8 +15,7 @@ from utils.get_vkitti_dataset_full import get_dataloaders
 from utils.tensorize_batch import tensorize_batch
 from utils.convert_tensor_to_RGB import convert_tensor_to_RGB
 
-
-from eval_sem_seg import eval_sem_seg
+from eval_sem_seg_depth import eval_sem_seg_depth
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -30,35 +29,48 @@ from datetime import datetime
 
 
 
-# %%
-
-
-
-
 
 def __update_model_wrapper(model, optimizer, device, rank, writer):
     def __update_model(trainer_engine, batch):
         model.train()
         optimizer.zero_grad()
 
-        imgs, ann, _, _, _, _, _, _, _ = batch
+        imgs, ann, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, _, _ = batch
 
         imgs = list(img for img in imgs)
+        lidar_fov = list(lid_fov for lid_fov in lidar_fov)
+        masks = list(mask for mask in masks)
+        sparse_depth = list(sd for sd in sparse_depth)
+        k_nn_indices = list(k_nn for k_nn in k_nn_indices)
+        sparse_depth_gt = list(sp_d for sp_d in sparse_depth_gt)
+
         imgs = tensorize_batch(imgs, device)
+        lidar_fov = tensorize_batch(lidar_fov, device, dtype=torch.float)
+        masks = tensorize_batch(masks, device, dtype=torch.bool)
+        sparse_depth = tensorize_batch(sparse_depth, device)
+        k_nn_indices = tensorize_batch(k_nn_indices, device, dtype=torch.long)
+        sparse_depth_gt = tensorize_batch(
+            sparse_depth_gt, device, dtype=torch.float)
 
         annotations = [{k: v.to(device) for k, v in t.items()}
-                    for t in ann]
+                       for t in ann]
         
         semantic_masks = list(map(lambda ann: ann['semantic_mask'], annotations))
         
         semantic_masks = tensorize_batch(semantic_masks, device)
-        
-        # print("shape", imgs.shape, sparse_depth.shape, sparse_depth_gt.shape)
-        loss_dict = model(imgs, semantic_masks=semantic_masks)
+
+        loss_dict = model(imgs,
+                          sparse_depth,
+                          masks,
+                          lidar_fov,
+                          k_nn_indices,
+                          sparse_depth_gt=sparse_depth_gt,
+                          semantic_masks=semantic_masks)
 
         losses = sum(loss for loss in loss_dict.values())
 
         i = trainer_engine.state.iteration
+
         if rank==0:
             writer.add_scalar("Loss/train/iteration", losses, i)
 
@@ -99,15 +111,16 @@ def __log_training_loss_wrapper(optimizer, train_res_file):
     return __log_training_loss
 
 
-def __log_validation_results_wrapper(model, optimizer, data_loader_val, scheduler, rank, train_res_file, device, writer):
+def __log_validation_results_wrapper(model, optimizer, data_loader_val, scheduler, rank, train_res_file, device, writer):    
     def __log_validation_results(trainer_engine):
         batch_loss = trainer_engine.state.output
         state_epoch = trainer_engine.state.epoch
         max_epochs = trainer_engine.state.max_epochs
         i = trainer_engine.state.iteration
         weights_path = "{}{}_loss_{}.pth".format(
-            constants.MODELS_LOC, "SemsegNet", batch_loss)
-        
+            constants.MODELS_LOC, "Semseg_Depth_v2_12k", batch_loss)
+        # state_dict = model.state_dict()
+
         if rank == 0:
             dict_model = {
                 'state_dict': model.state_dict(),
@@ -117,6 +130,8 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, schedule
             }
             torch.save(dict_model, weights_path)
 
+        # torch.save(state_dict, weights_path)
+
         sys.stdout = open(train_res_file, 'a+')
         print("Model weights filename: ", weights_path)
         text = "Validation Results - Epoch {}/{} batch_loss: {:.2f}".format(
@@ -124,23 +139,44 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, schedule
         sys.stdout = open(train_res_file, 'a+')
         print(text)
 
-        if rank ==0:
-            miou, rgb_sample, mask_gt, mask_output = eval_sem_seg(model, data_loader_val, weights_path, device)
+        
+        if rank == 0:
+            rmse, miou, rgb_sample, mask_gt, mask_output, sparse_depth_gt_sample, sparse_depth_gt_full, out_depth = eval_sem_seg_depth(model, data_loader_val, weights_path, device)
+            
+            writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
+            writer.add_scalar("rmse/train/epoch", rmse, state_epoch)
+            writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
+
+            # write images
+            sparse_depth_gt_sample = sparse_depth_gt_sample.squeeze_(0)
+            sparse_depth_gt_sample = sparse_depth_gt_sample.cpu().numpy()/255
+            out_depth_numpy = out_depth.cpu().numpy()/255
+            sparse_depth_gt_full = sparse_depth_gt_full.cpu().numpy()/255
+
+            writer.add_image("eval_depth/src_img", rgb_sample,
+                            state_epoch, dataformats="CHW")
+            writer.add_image("eval_depth/gt_full", sparse_depth_gt_full,
+                            state_epoch, dataformats="HW")
+            writer.add_image("eval_depth/gt", sparse_depth_gt_sample,
+                            state_epoch, dataformats="HW")
+            writer.add_image("eval_depth/out", out_depth_numpy,
+                            state_epoch, dataformats="HW")
 
             mask_gt = convert_tensor_to_RGB(mask_gt.unsqueeze(0), device).squeeze(0)/255
             mask_output = torch.argmax(mask_output, dim=0)
-            mask_output = convert_tensor_to_RGB(mask_output.unsqueeze(0), device).squeeze(0)/255
+            mask_output = convert_tensor_to_RGB(
+                mask_output.unsqueeze(0),device).squeeze(0)/255
 
-            writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
-            writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
-            writer.add_image("eval/src_img", rgb_sample, state_epoch, dataformats="CHW")
-            writer.add_image("eval/gt", mask_gt, state_epoch, dataformats="CHW")
-            writer.add_image("eval/out", mask_output, state_epoch, dataformats="CHW")
+            writer.add_image("eval_semantic/src_img", rgb_sample,
+                            state_epoch, dataformats="CHW")
+            writer.add_image("eval_semantic/gt", mask_gt,
+                            state_epoch, dataformats="CHW")
+            writer.add_image("eval_semantic/out", mask_output,
+                            state_epoch, dataformats="CHW")
 
-        
+        # semantic seg results
         scheduler.step()
     return __log_validation_results
-
 
 def __setup_state_wrapper(start_epoch):
     def __setup_state(engine):
@@ -180,13 +216,13 @@ def train(gpu, args):
 
     # Write results in text file
     
-    res_filename = "results_{}".format("SemsegNet")
+    res_filename = "results_{}".format("Semseg_Depth_v2_12k")
     train_res_file = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), constants.RES_LOC, res_filename)
 
     with open(train_res_file, "w+") as training_results:
         training_results.write(
-            "----- TRAINING RESULTS - Vkitti {} ----".format("SemsegNet")+"\n")
+            "----- TRAINING RESULTS - Vkitti {} ----".format("Semseg_Depth_v2_12k")+"\n")
     # Set device
     temp_variables.DEVICE = args.gpu
     
@@ -195,9 +231,7 @@ def train(gpu, args):
     torch.cuda.empty_cache()
 
     # Get model according to config
-    model = models.get_model_by_name("SemsegNet").cuda(args.gpu)
-
-        
+    model = models.get_model_by_name("Semseg_Depth_v2").cuda(args.gpu)
 
     # move model to the right device
 
@@ -215,15 +249,14 @@ def train(gpu, args):
     optimizer = torch.optim.SGD(
         params, lr=0.0016, momentum=0.9, weight_decay=0.00005)
 
-    
-    if config_kitti.CHECKPOINT_SEMSEG is not None:
+    if config_kitti.CHECKPOINT_SEMSEG_DEPTH_v2 is not None:
         dist.barrier()
         sys.stdout = open(train_res_file, 'a+')
-        print("Loading checkpoint from {} to {}".format(0, rank), config_kitti.CHECKPOINT_SEMSEG)
+        print("Loading checkpoint from {} to {}".format(0, rank), config_kitti.CHECKPOINT_SEMSEG_DEPTH_v2)
         # map location
         map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
 
-        checkpoint = torch.load(config_kitti.CHECKPOINT_SEMSEG, map_location=map_location)
+        checkpoint = torch.load(config_kitti.CHECKPOINT_SEMSEG_DEPTH_v2, map_location=map_location)
         optimizer.load_state_dict(checkpoint['optimizer'])
         model.load_state_dict(checkpoint['state_dict'])
     
@@ -281,26 +314,27 @@ def train(gpu, args):
         # data_loader_2_coco_ann(data_loader_val_filename, annotation)
 
     if rank ==0:
-        writer = SummaryWriter(log_dir="runs/SemsegNet")
+        writer = SummaryWriter(log_dir="runs/Semseg_Depth_v2_12k")
     else:
         writer=None
-
     # ---------------TRAIN--------------------------------------
+
     scheduler = MultiStepLR(optimizer, milestones=[65, 80, 85, 90], gamma=0.1)
     ignite_engine = Engine(__update_model_wrapper(model, optimizer, args.gpu, rank, writer))
 
-    if  config_kitti.CHECKPOINT_SEMSEG is not None:
+    if  config_kitti.CHECKPOINT_SEMSEG_DEPTH_v2 is not None:
         epoch = checkpoint['epoch']
         ignite_engine.add_event_handler(Events.STARTED, __setup_state_wrapper(epoch))
-
+    # ignite_engine.add_event_handler(Events.ITERATION_STARTED, scheduler)
     ignite_engine.add_event_handler(
         Events.ITERATION_COMPLETED(every=100), __log_training_loss_wrapper(optimizer, train_res_file))
     ignite_engine.add_event_handler(
         Events.EPOCH_COMPLETED, __log_validation_results_wrapper(model, optimizer, data_loader_val, scheduler, rank, train_res_file, gpu, writer))
     ignite_engine.run(data_loader_train, config_kitti.MAX_EPOCHS)
 
-    if rank==0:
+    if rank ==0:
         writer.flush()
+
 
 if __name__ == "__main__":
 

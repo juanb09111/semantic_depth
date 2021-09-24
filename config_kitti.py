@@ -1,10 +1,15 @@
 # All dirs relative to root
-BATCH_SIZE = 1
+BATCH_SIZE = 2
 
 # MODEL =  "EfusionPS_V3_depth" 
 MODEL = "FuseNet"
-# CHECKPOINT = "tmp/models/FuseNet_loss_0.42496299164789214.pth"
-CHECKPOINT = None
+# CHECKPOINT = None
+CHECKPOINT_SEMSEG_DEPTH = "tmp/models/Semseg_Depth_loss_0.3520721461639244.pth"
+CHECKPOINT_SEMSEG_DEPTH_v2 = "tmp/models/Semseg_Depth_v2_loss_0.42286657051620236.pth"
+CHECKPOINT_SEMSEG_DEPTH_v3 = "tmp/models/Semseg_Depth_v3_loss_0.506784134356471.pth"
+CHECKPOINT_SEMSEG = "tmp/models/SemsegNet_loss_0.21476173400878906.pth"
+CHECKPOINT_FUSENET = "tmp/models/FuseNet_loss_0.2816952901151524.pth"
+
 
 BACKBONE = "resnet50" # This is the only one available at the moment
 BACKBONE_OUT_CHANNELS = 256
@@ -41,12 +46,12 @@ SEMANTIC_SEGMENTATION_DATA_CLASS = "semseg_bin"
 MAX_EPOCHS = 100
 
 # MAX_TRAINING_SAMPLES = 100
-MAX_TRAINING_SAMPLES = None
+MAX_TRAINING_SAMPLES = 625
 VAL_SIZE = 0.20 #PERCENTAGE
 # If USE_PREEXISTING_DATA_LOADERS is True new data_loaders will not be written
 USE_PREEXISTING_DATA_LOADERS = False
-DATA_LOADER_TRAIN_FILANME = "tmp/data_loaders/vkitti_data_loader_train_all_samples.pth"
-DATA_LOADER_VAL_FILENAME = "tmp/data_loaders/vkitti_data_loader_val_all_samples.pth"
+DATA_LOADER_TRAIN_FILANME = "tmp/data_loaders/vkitti_data_loader_train_625_samples.pth"
+DATA_LOADER_VAL_FILENAME = "tmp/data_loaders/vkitti_data_loader_val_625_samples.pth"
 
 COCO_ANN = "kitti2coco_ann.json"
 

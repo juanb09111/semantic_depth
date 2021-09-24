@@ -37,7 +37,7 @@ def get_vkitti_files(dirName, ext):
 
 
 class vkittiDataset(torch.utils.data.Dataset):
-    def __init__(self, imgs_root, depth_root, annotation, transforms, n_samples=None):
+    def __init__(self, imgs_root, depth_root, annotation, transforms, n_samples=None, shuffle=False):
 
         self.imgs_root = imgs_root
         self.depth_root = depth_root
@@ -46,7 +46,8 @@ class vkittiDataset(torch.utils.data.Dataset):
 
         # get ids and shuffle
         self.ids = list(sorted(self.coco.imgs.keys()))
-        random.shuffle(self.ids)
+        if shuffle:
+            random.shuffle(self.ids)
 
         catIds = self.coco.getCatIds()
         categories = self.coco.loadCats(catIds)
@@ -412,8 +413,12 @@ def get_datasets(imgs_root, depth_root, annotation, split=False, val_size=0.20, 
 
         if len_train < 1 or len_val < 1:
             raise AssertionError("datasets length cannot be zero")
-        train_set, val_set = torch.utils.data.random_split(
-            vkitti_dataset, [len_train, len_val])
+
+        indices = list(range(len(vkitti_dataset)))
+        train_set = torch.utils.data.Subset(vkitti_dataset, indices[:len_train])
+        val_set = torch.utils.data.Subset(vkitti_dataset, indices[len_train:])
+        # train_set, val_set = torch.utils.data.random_split(
+        #     vkitti_dataset, [len_train, len_val])
         return train_set, val_set
     else:
         return vkitti_dataset

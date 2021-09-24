@@ -13,10 +13,10 @@ from torch.optim.lr_scheduler import MultiStepLR
 from utils.get_vkitti_dataset_full import get_dataloaders
 
 from utils.tensorize_batch import tensorize_batch
-from utils.convert_tensor_to_RGB import convert_tensor_to_RGB
 
-
-from eval_sem_seg import eval_sem_seg
+from utils.get_stuff_thing_classes import get_stuff_thing_classes
+from utils.data_loader_2_coco_ann import data_loader_2_coco_ann
+from eval_depth_completion import eval_depth
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -30,8 +30,6 @@ from datetime import datetime
 
 
 
-# %%
-
 
 
 
@@ -41,20 +39,31 @@ def __update_model_wrapper(model, optimizer, device, rank, writer):
         model.train()
         optimizer.zero_grad()
 
-        imgs, ann, _, _, _, _, _, _, _ = batch
+        imgs, _, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, _, _ = batch
 
         imgs = list(img for img in imgs)
-        imgs = tensorize_batch(imgs, device)
+        lidar_fov = list(lid_fov for lid_fov in lidar_fov)
+        masks = list(mask for mask in masks)
+        sparse_depth = list(sd for sd in sparse_depth)
+        k_nn_indices = list(k_nn for k_nn in k_nn_indices)
+        sparse_depth_gt = list(sp_d for sp_d in sparse_depth_gt)
+        
 
-        annotations = [{k: v.to(device) for k, v in t.items()}
-                    for t in ann]
-        
-        semantic_masks = list(map(lambda ann: ann['semantic_mask'], annotations))
-        
-        semantic_masks = tensorize_batch(semantic_masks, device)
-        
+        imgs = tensorize_batch(imgs, device)
+        lidar_fov = tensorize_batch(lidar_fov, device, dtype=torch.float)
+        masks = tensorize_batch(masks, device, dtype=torch.bool)
+        sparse_depth = tensorize_batch(sparse_depth, device)
+        k_nn_indices = tensorize_batch(k_nn_indices, device, dtype=torch.long)
+        sparse_depth_gt = tensorize_batch(
+            sparse_depth_gt, device, dtype=torch.float)
+
         # print("shape", imgs.shape, sparse_depth.shape, sparse_depth_gt.shape)
-        loss_dict = model(imgs, semantic_masks=semantic_masks)
+        loss_dict = model(imgs,
+                        sparse_depth,
+                        masks,
+                        lidar_fov,
+                        k_nn_indices,
+                        sparse_depth_gt=sparse_depth_gt)
 
         losses = sum(loss for loss in loss_dict.values())
 
@@ -106,7 +115,7 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, schedule
         max_epochs = trainer_engine.state.max_epochs
         i = trainer_engine.state.iteration
         weights_path = "{}{}_loss_{}.pth".format(
-            constants.MODELS_LOC, "SemsegNet", batch_loss)
+            constants.MODELS_LOC, "FuseNet", batch_loss)
         
         if rank == 0:
             dict_model = {
@@ -124,30 +133,34 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, schedule
         sys.stdout = open(train_res_file, 'a+')
         print(text)
 
-        if rank ==0:
-            miou, rgb_sample, mask_gt, mask_output = eval_sem_seg(model, data_loader_val, weights_path, device)
-
-            mask_gt = convert_tensor_to_RGB(mask_gt.unsqueeze(0), device).squeeze(0)/255
-            mask_output = torch.argmax(mask_output, dim=0)
-            mask_output = convert_tensor_to_RGB(mask_output.unsqueeze(0), device).squeeze(0)/255
-
+        if rank == 0:
+            rmse, rgb_sample, sparse_depth_gt_sample, sparse_depth_gt_full, out_depth = eval_depth(model, data_loader_val, weights_path, device)
+            sys.stdout = open(train_res_file, 'a+')
+            
             writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
-            writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
-            writer.add_image("eval/src_img", rgb_sample, state_epoch, dataformats="CHW")
-            writer.add_image("eval/gt", mask_gt, state_epoch, dataformats="CHW")
-            writer.add_image("eval/out", mask_output, state_epoch, dataformats="CHW")
+            writer.add_scalar("rmse/train/epoch", rmse, state_epoch)
 
-        
+            # write images
+            sparse_depth_gt_sample = sparse_depth_gt_sample.squeeze_(0)
+            sparse_depth_gt_sample = sparse_depth_gt_sample.cpu().numpy()/255
+            # sparse_depth_gt_sample = np.reshape(sparse_depth_gt_sample, (-1, config_kitti.CROP_OUTPUT_SIZE[0], config_kitti.CROP_OUTPUT_SIZE[1], 1))
+            out_depth_numpy = out_depth.cpu().numpy()/255
+            # out_depth_numpy = np.reshape(out_depth_numpy, (-1, config_kitti.CROP_OUTPUT_SIZE[0], config_kitti.CROP_OUTPUT_SIZE[1], 1))
+            sparse_depth_gt_full = sparse_depth_gt_full.cpu().numpy()/255
+
+            writer.add_image("eval/src_img", rgb_sample, state_epoch, dataformats="CHW")
+            writer.add_image("eval/gt_full", sparse_depth_gt_full, state_epoch, dataformats="HW")
+            writer.add_image("eval/gt", sparse_depth_gt_sample, state_epoch, dataformats="HW")
+            writer.add_image("eval/out", out_depth_numpy, state_epoch, dataformats="HW")
+
         scheduler.step()
     return __log_validation_results
-
 
 def __setup_state_wrapper(start_epoch):
     def __setup_state(engine):
         engine.state.epoch = start_epoch
     return __setup_state
-
-
+        
 def train(gpu, args):
     # DP
     args.gpu = gpu
@@ -180,13 +193,13 @@ def train(gpu, args):
 
     # Write results in text file
     
-    res_filename = "results_{}".format("SemsegNet")
+    res_filename = "results_{}".format("FuseNet")
     train_res_file = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), constants.RES_LOC, res_filename)
 
     with open(train_res_file, "w+") as training_results:
         training_results.write(
-            "----- TRAINING RESULTS - Vkitti {} ----".format("SemsegNet")+"\n")
+            "----- TRAINING RESULTS - Vkitti {} ----".format("FuseNet")+"\n")
     # Set device
     temp_variables.DEVICE = args.gpu
     
@@ -195,9 +208,8 @@ def train(gpu, args):
     torch.cuda.empty_cache()
 
     # Get model according to config
-    model = models.get_model_by_name("SemsegNet").cuda(args.gpu)
-
-        
+    model = models.get_model_by_name("FuseNet").cuda(args.gpu)
+     
 
     # move model to the right device
 
@@ -215,15 +227,15 @@ def train(gpu, args):
     optimizer = torch.optim.SGD(
         params, lr=0.0016, momentum=0.9, weight_decay=0.00005)
 
-    
-    if config_kitti.CHECKPOINT_SEMSEG is not None:
+
+    if config_kitti.CHECKPOINT_FUSENET is not None:
         dist.barrier()
         sys.stdout = open(train_res_file, 'a+')
-        print("Loading checkpoint from {} to {}".format(0, rank), config_kitti.CHECKPOINT_SEMSEG)
+        print("Loading checkpoint from {} to {}".format(0, rank), config_kitti.CHECKPOINT_FUSENET)
         # map location
         map_location = {'cuda:%d' % 0: 'cuda:%d' % rank}
 
-        checkpoint = torch.load(config_kitti.CHECKPOINT_SEMSEG, map_location=map_location)
+        checkpoint = torch.load(config_kitti.CHECKPOINT_FUSENET, map_location=map_location)
         optimizer.load_state_dict(checkpoint['optimizer'])
         model.load_state_dict(checkpoint['state_dict'])
     
@@ -281,15 +293,14 @@ def train(gpu, args):
         # data_loader_2_coco_ann(data_loader_val_filename, annotation)
 
     if rank ==0:
-        writer = SummaryWriter(log_dir="runs/SemsegNet")
+        writer = SummaryWriter(log_dir="runs/FuseNet")
     else:
         writer=None
-
     # ---------------TRAIN--------------------------------------
     scheduler = MultiStepLR(optimizer, milestones=[65, 80, 85, 90], gamma=0.1)
     ignite_engine = Engine(__update_model_wrapper(model, optimizer, args.gpu, rank, writer))
 
-    if  config_kitti.CHECKPOINT_SEMSEG is not None:
+    if  config_kitti.CHECKPOINT_FUSENET is not None:
         epoch = checkpoint['epoch']
         ignite_engine.add_event_handler(Events.STARTED, __setup_state_wrapper(epoch))
 
@@ -301,6 +312,7 @@ def train(gpu, args):
 
     if rank==0:
         writer.flush()
+
 
 if __name__ == "__main__":
 
@@ -324,4 +336,3 @@ if __name__ == "__main__":
     os.environ['WORLD_SIZE'] = str(args.world_size)
     # nprocs: number of process which is equal to args.ngpu here
     mp.spawn(train, nprocs=args.ngpus, args=(args,))
-

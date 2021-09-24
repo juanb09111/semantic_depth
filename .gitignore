@@ -6,6 +6,7 @@ runs/
 prev_runs/
 data/
 narvi_runs/
+tmp/
 **/*.pth
 **/*.pkl
 **/*.png

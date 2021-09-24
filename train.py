@@ -9,7 +9,7 @@ import train_sem_seg_net
 import train_semseg_depth_v2
 import train_semseg_depth_v3
 import train_semseg_depth
-
+from models import MODELS
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 
 def get_train_loop(model_name):
@@ -46,6 +46,8 @@ if __name__ == "__main__":
     if args.checkpoint == "":
         args.checkpoint = None
 
+    if args.model_name not in MODELS:
+        raise ValueError("model_name must be one of: ", MODELS)
     train_loop = get_train_loop(args.model_name)
 
     # Total number of gpus availabe to us.

@@ -12,12 +12,12 @@ from backbones_bank.tunned_maskrcnn.utils.backbone_utils import resnet_fpn_backb
 import config_kitti
 
 
-class SemsegNet(nn.Module):
+class SemsegNet_DepthInput(nn.Module):
     def __init__(self, backbone_out_channels,
                  num_ins_classes,
                  num_sem_classes,
                  original_image_size):
-        super(SemsegNet, self).__init__()
+        super(SemsegNet_DepthInput, self).__init__()
 
         self.backbone = resnet_fpn_backbone('resnet50', False)
         # backbone.body.conv1 = nn.Conv2d(48, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)

@@ -12,6 +12,9 @@ from backbones_bank.tunned_maskrcnn.utils.backbone_utils import resnet_fpn_backb
 import config_kitti
 
 
+"""Backbone & depth_gt ----> semantic head"""
+
+
 class SemsegNet_DepthInput(nn.Module):
     def __init__(self, backbone_out_channels,
                  num_ins_classes,

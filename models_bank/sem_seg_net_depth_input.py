@@ -46,8 +46,8 @@ class SemsegNet_DepthInput(nn.Module):
         device = sparse_depth_gt.get_device()
 
         depth_gt = torch.where(sparse_depth_gt > 0,
-                              torch.tensor((1), device=device, dtype=torch.float64),
-                              torch.tensor((0), device=device, dtype=torch.float64))
+                              torch.tensor((1), device=device, dtype=torch.float),
+                              torch.tensor((0), device=device, dtype=torch.float))
 
         losses = {}
         semantic_logits = []

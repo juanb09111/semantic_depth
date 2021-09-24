@@ -41,7 +41,7 @@ def get_model_by_name(model_name):
                          config_kitti.CROP_OUTPUT_SIZE)
 
     if model_name is "SemsegNet_DepthInput":
-        return SemsegNet(config_kitti.BACKBONE_OUT_CHANNELS,
+        return SemsegNet_DepthInput(config_kitti.BACKBONE_OUT_CHANNELS,
                          config_kitti.NUM_THING_CLASSES,
                          config_kitti.NUM_STUFF_CLASSES,
                          config_kitti.CROP_OUTPUT_SIZE)

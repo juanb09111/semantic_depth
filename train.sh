@@ -57,4 +57,4 @@ CHECKPOINT=$3
 
 # python eval_coco.py $SLURM_TASK_ARRAY_ID
 # python train_efusion_vkitti.py $SLURM_TASK_ARRAY_ID
-python train.py --model_name=$MODEL_NAME --batch_size=$BATCH_SIZE --checkpoint=$CHECKPOINT --nodes=1 --ngpus=1 --ip_adress $ip1 $SLURM_TASK_ARRAY_ID
+python train.py --model_name=$MODEL_NAME --batch_size=$BATCH_SIZE --checkpoint=$CHECKPOINT --nodes=1 --ngpus=4 --ip_adress $ip1 $SLURM_TASK_ARRAY_ID

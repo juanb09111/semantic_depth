@@ -166,8 +166,8 @@ def train(gpu, args):
     args.gpu = gpu
     print('gpu:', gpu)
     # rank calculation for each process per gpu so that they can be identified uniquely.
-    # rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
-    rank = args.local_ranks * args.ngpus + gpu
+    rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
+    # rank = args.local_ranks * args.ngpus + gpu
     print('rank:', rank)
     # Boilerplate code to initialize the parallel prccess.
     # It looks for ip-address and port which we have set as environ variable.

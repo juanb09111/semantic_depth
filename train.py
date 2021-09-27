@@ -9,6 +9,7 @@ import train_fusenet_v2
 import train_sem_seg_net
 import train_semseg_depth_v2
 import train_semseg_depth_v3
+import train_semseg_depth_v4
 import train_semseg_depth
 import train_semseg_depth_input
 import train_semseg_depth_v2_loss_sum
@@ -28,6 +29,8 @@ def get_train_loop(model_name):
         return train_semseg_depth_v2.train
     if model_name == "Semseg_Depth_v3":
         return train_semseg_depth_v3.train
+    if model_name == "Semseg_Depth_v4":
+        return train_semseg_depth_v4.train
     if model_name == "SemsegNet_DepthInput":
         return train_semseg_depth_input.train
     if model_name == "Semseg_Depth_v2_loss_sum":

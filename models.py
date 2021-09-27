@@ -8,6 +8,7 @@ from models_bank.sem_seg_net import SemsegNet
 from models_bank.sem_seg_depth import Semseg_Depth
 from models_bank.sem_seg_depth_v2 import Semseg_Depth as Semseg_Depth_v2
 from models_bank.sem_seg_depth_v2_loss_sum import Semseg_Depth as Semseg_Depth_v2_loss_sum
+from models_bank.sem_seg_depth_v4 import Semseg_Depth as Semseg_Depth_v4
 from models_bank.sem_seg_depth_v3 import Semseg_Depth as Semseg_Depth_v3
 from models_bank.sem_seg_net_depth_input import SemsegNet_DepthInput
 import config_kitti
@@ -18,6 +19,7 @@ MODELS = ["FuseNet",
           "Semseg_Depth_v2",
           "Semseg_Depth_v2_loss_sum",
           "Semseg_Depth_v3",
+          "Semseg_Depth_v4",
           "SemsegNet_DepthInput",
           "FuseNet_v2"]
 
@@ -65,6 +67,14 @@ def get_model_by_name(model_name):
 
     if model_name is "Semseg_Depth_v2":
         return Semseg_Depth_v2(config_kitti.K_NUMBER,
+                               config_kitti.BACKBONE_OUT_CHANNELS,
+                               config_kitti.NUM_THING_CLASSES,
+                               config_kitti.NUM_STUFF_CLASSES,
+                               config_kitti.CROP_OUTPUT_SIZE,
+                               n_number=config_kitti.N_NUMBER)
+    
+    if model_name is "Semseg_Depth_v4":
+        return Semseg_Depth_v4(config_kitti.K_NUMBER,
                                config_kitti.BACKBONE_OUT_CHANNELS,
                                config_kitti.NUM_THING_CLASSES,
                                config_kitti.NUM_STUFF_CLASSES,

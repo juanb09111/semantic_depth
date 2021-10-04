@@ -118,7 +118,7 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, schedule
         max_epochs = trainer_engine.state.max_epochs
         i = trainer_engine.state.iteration
         weights_path = "{}{}_loss_{}.pth".format(
-            constants.MODELS_LOC, "Semseg_Depth_v4", batch_loss)
+            constants.MODELS_LOC, "Semseg_Depth_v4_pre_trained", batch_loss)
         # state_dict = model.state_dict()
 
         if rank == 0:
@@ -216,13 +216,13 @@ def train(gpu, args):
 
     # Write results in text file
     
-    res_filename = "results_{}".format("Semseg_Depth_v4")
+    res_filename = "results_{}".format("Semseg_Depth_v4_pre_trained")
     train_res_file = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), constants.RES_LOC, res_filename)
 
     with open(train_res_file, "w+") as training_results:
         training_results.write(
-            "----- TRAINING RESULTS - Vkitti {} ----".format("Semseg_Depth_v4")+"\n")
+            "----- TRAINING RESULTS - Vkitti {} ----".format("Semseg_Depth_v4_pre_trained")+"\n")
     # Set device
     temp_variables.DEVICE = args.gpu
     
@@ -314,7 +314,7 @@ def train(gpu, args):
         # data_loader_2_coco_ann(data_loader_val_filename, annotation)
 
     if rank ==0:
-        writer = SummaryWriter(log_dir="runs/Semseg_Depth_v4")
+        writer = SummaryWriter(log_dir="runs/Semseg_Depth_v4_pre_trained")
     else:
         writer=None
     # ---------------TRAIN--------------------------------------

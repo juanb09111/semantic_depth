@@ -154,7 +154,7 @@ class Semseg_Depth(nn.Module):
         )
 
         self.fuse_conv = nn.Sequential(
-            FuseBlock(64, 64, k_number, n_number=n_number),
+            FuseBlock(48, 64, k_number, n_number=n_number),
             FuseBlock(64, 64, k_number, n_number=n_number,
                       extra_output_layer=True),
             FuseBlock(64, 64, k_number, n_number=n_number,
@@ -190,7 +190,7 @@ class Semseg_Depth(nn.Module):
         )
 
         # Semantic Segmentation 
-        self.backbone = resnet_fpn_backbone('resnet50', False)
+        self.backbone = resnet_fpn_backbone('resnet50', True)
         # backbone.body.conv1 = nn.Conv2d(48, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 
 

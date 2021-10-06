@@ -14,11 +14,6 @@ from backbones_bank.tunned_maskrcnn.utils.backbone_utils import resnet_fpn_backb
 import config_kitti
 import matplotlib.pyplot as plt
 
-"""
-Backbone --> Depth head
-Backbone --> Semantig Seg head
-Depth head --> Semantic head
-"""
 
 class Two_D_Branch(nn.Module):
     def __init__(self, backbone_out_channels):
@@ -190,7 +185,7 @@ class Semseg_Depth(nn.Module):
         )
 
         # Semantic Segmentation 
-        self.backbone = resnet_fpn_backbone('resnet50', True)
+        self.backbone = resnet_fpn_backbone('resnet50', False)
         # backbone.body.conv1 = nn.Conv2d(48, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 
 

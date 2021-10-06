@@ -25,7 +25,7 @@ MODELS = ["FuseNet",
 
 
 def get_model_by_name(model_name):
-    if model_name is "EfusionPS_V3_depth":
+    if model_name == "EfusionPS_V3_depth":
         return EfusionPS_V3_depth(config_kitti.BACKBONE,
                                   config_kitti.BACKBONE_OUT_CHANNELS,
                                   config_kitti.K_NUMBER,
@@ -36,28 +36,28 @@ def get_model_by_name(model_name):
                                   max_size=config_kitti.MAX_SIZE,
                                   n_number=config_kitti.N_NUMBER)
 
-    if model_name is "FuseNet":
+    if model_name == "FuseNet":
         return FuseNet(config_kitti.K_NUMBER,
                        n_number=config_kitti.N_NUMBER)
     
-    if model_name is "FuseNet_v2":
+    if model_name == "FuseNet_v2":
         return FuseNet_v2(config_kitti.K_NUMBER,
                        n_number=config_kitti.N_NUMBER)
 
-    if model_name is "SemsegNet":
+    if model_name == "SemsegNet":
         return SemsegNet(config_kitti.BACKBONE_OUT_CHANNELS,
                          config_kitti.NUM_THING_CLASSES,
                          config_kitti.NUM_STUFF_CLASSES,
                          config_kitti.CROP_OUTPUT_SIZE)
 
-    if model_name is "SemsegNet_DepthInput":
+    if model_name == "SemsegNet_DepthInput":
         return SemsegNet_DepthInput(config_kitti.BACKBONE_OUT_CHANNELS,
                          config_kitti.NUM_THING_CLASSES,
                          config_kitti.NUM_STUFF_CLASSES,
                          config_kitti.CROP_OUTPUT_SIZE)
 
 
-    if model_name is "Semseg_Depth":
+    if model_name == "Semseg_Depth":
         return Semseg_Depth(config_kitti.K_NUMBER,
                             config_kitti.BACKBONE_OUT_CHANNELS,
                             config_kitti.NUM_THING_CLASSES,
@@ -65,7 +65,7 @@ def get_model_by_name(model_name):
                             config_kitti.CROP_OUTPUT_SIZE,
                             n_number=config_kitti.N_NUMBER)
 
-    if model_name is "Semseg_Depth_v2":
+    if model_name == "Semseg_Depth_v2":
         return Semseg_Depth_v2(config_kitti.K_NUMBER,
                                config_kitti.BACKBONE_OUT_CHANNELS,
                                config_kitti.NUM_THING_CLASSES,
@@ -73,7 +73,7 @@ def get_model_by_name(model_name):
                                config_kitti.CROP_OUTPUT_SIZE,
                                n_number=config_kitti.N_NUMBER)
     
-    if model_name is "Semseg_Depth_v4":
+    if model_name == "Semseg_Depth_v4":
         return Semseg_Depth_v4(config_kitti.K_NUMBER,
                                config_kitti.BACKBONE_OUT_CHANNELS,
                                config_kitti.NUM_THING_CLASSES,
@@ -81,7 +81,7 @@ def get_model_by_name(model_name):
                                config_kitti.CROP_OUTPUT_SIZE,
                                n_number=config_kitti.N_NUMBER)
 
-    if model_name is "Semseg_Depth_v2_loss_sum":
+    if model_name == "Semseg_Depth_v2_loss_sum":
         return Semseg_Depth_v2_loss_sum(config_kitti.K_NUMBER,
                                config_kitti.BACKBONE_OUT_CHANNELS,
                                config_kitti.NUM_THING_CLASSES,
@@ -89,7 +89,7 @@ def get_model_by_name(model_name):
                                config_kitti.CROP_OUTPUT_SIZE,
                                n_number=config_kitti.N_NUMBER)
 
-    if model_name is "Semseg_Depth_v3":
+    if model_name == "Semseg_Depth_v3":
         return Semseg_Depth_v3(config_kitti.K_NUMBER,
                                config_kitti.BACKBONE_OUT_CHANNELS,
                                config_kitti.NUM_THING_CLASSES,

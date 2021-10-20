@@ -6,6 +6,7 @@ import os.path
 import numpy as np
 import torch
 from torch import nn
+import torch.nn.functional as F
 import torch.distributed as dist
 from utils.tensorize_batch import tensorize_batch
 from utils.get_vkitti_dataset_full import get_dataloaders

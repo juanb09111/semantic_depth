@@ -4,15 +4,15 @@ import os.path
 import sys
 import torch.multiprocessing as mp
 from argparse import ArgumentParser
-import train_fusenet
-import train_fusenet_v2
-import train_sem_seg_net
-import train_semseg_depth_v2
-import train_semseg_depth_v3
-import train_semseg_depth_v4
-import train_semseg_depth
-import train_semseg_depth_input
-import train_semseg_depth_v2_loss_sum
+from train import train_fusenet
+from train import train_fusenet_v2
+from train import train_sem_seg_net
+from train import train_semseg_depth_v2
+from train import train_semseg_depth_v3
+from train import train_semseg_depth_v4
+from train import train_semseg_depth
+from train import train_semseg_depth_input
+from train import train_semseg_depth_v2_loss_sum
 from models import MODELS
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 

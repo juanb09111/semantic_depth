@@ -15,7 +15,7 @@ from utils.get_vkitti_dataset_full import get_dataloaders
 from utils.tensorize_batch import tensorize_batch
 from utils.convert_tensor_to_RGB import convert_tensor_to_RGB
 
-from eval_sem_seg_depth import eval_sem_seg_depth
+from eval_scripts.eval_sem_seg_depth import eval_sem_seg_depth
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -118,7 +118,7 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, schedule
         max_epochs = trainer_engine.state.max_epochs
         i = trainer_engine.state.iteration
         weights_path = "{}{}_loss_{}.pth".format(
-            constants.MODELS_LOC, "Semseg_Depth_v2_12k", batch_loss)
+            constants.MODELS_LOC, "Semseg_Depth_v4", batch_loss)
         # state_dict = model.state_dict()
 
         if rank == 0:
@@ -189,8 +189,8 @@ def train(gpu, args):
     args.gpu = gpu
     print('gpu:', gpu)
     # rank calculation for each process per gpu so that they can be identified uniquely.
-    rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
-    # rank = args.local_ranks * args.ngpus + gpu
+    # rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
+    rank = args.local_ranks * args.ngpus + gpu
     print('rank:', rank)
     # Boilerplate code to initialize the parallel prccess.
     # It looks for ip-address and port which we have set as environ variable.
@@ -216,13 +216,13 @@ def train(gpu, args):
 
     # Write results in text file
     
-    res_filename = "results_{}".format("Semseg_Depth_v2_12k")
+    res_filename = "results_{}".format("Semseg_Depth_v4")
     train_res_file = os.path.join(os.path.dirname(
-        os.path.abspath(__file__)), constants.RES_LOC, res_filename)
+        os.path.abspath(__file__)), "..", constants.RES_LOC, res_filename)
 
     with open(train_res_file, "w+") as training_results:
         training_results.write(
-            "----- TRAINING RESULTS - Vkitti {} ----".format("Semseg_Depth_v2_12k")+"\n")
+            "----- TRAINING RESULTS - Vkitti {} ----".format("Semseg_Depth_v4")+"\n")
     # Set device
     temp_variables.DEVICE = args.gpu
     
@@ -231,7 +231,7 @@ def train(gpu, args):
     torch.cuda.empty_cache()
 
     # Get model according to config
-    model = models.get_model_by_name("Semseg_Depth_v2").cuda(args.gpu)
+    model = models.get_model_by_name("Semseg_Depth_v4").cuda(args.gpu)
 
     # move model to the right device
 
@@ -280,13 +280,13 @@ def train(gpu, args):
     else:
 
         imgs_root = os.path.join(os.path.dirname(os.path.abspath(
-            __file__)), config_kitti.DATA, "vkitti_2.0.3_rgb/")
+            __file__)), "..", config_kitti.DATA, "vkitti_2.0.3_rgb/")
 
         depth_root = os.path.join(os.path.dirname(os.path.abspath(
-            __file__)), config_kitti.DATA, "vkitti_2.0.3_depth/")
+            __file__)), "..", config_kitti.DATA, "vkitti_2.0.3_depth/")
 
         annotation = os.path.join(os.path.dirname(os.path.abspath(
-            __file__)), config_kitti.COCO_ANN)
+            __file__)), "..", config_kitti.COCO_ANN)
 
  
         data_loader_train, data_loader_val = get_dataloaders(
@@ -302,10 +302,10 @@ def train(gpu, args):
 
         # save data loaders
         data_loader_train_filename = os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), constants.DATA_LOADERS_LOC, constants.VKITTI_DATA_LOADER_TRAIN_FILANME)
+            os.path.abspath(__file__)), "..", constants.DATA_LOADERS_LOC, constants.VKITTI_DATA_LOADER_TRAIN_FILANME)
 
         data_loader_val_filename = os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), constants.DATA_LOADERS_LOC, constants.VKITTI_DATA_LOADER_VAL_FILENAME)
+            os.path.abspath(__file__)), "..", constants.DATA_LOADERS_LOC, constants.VKITTI_DATA_LOADER_VAL_FILENAME)
 
         torch.save(data_loader_train, data_loader_train_filename)
         torch.save(data_loader_val, data_loader_val_filename)
@@ -314,7 +314,7 @@ def train(gpu, args):
         # data_loader_2_coco_ann(data_loader_val_filename, annotation)
 
     if rank ==0:
-        writer = SummaryWriter(log_dir="runs/Semseg_Depth_v2_12k")
+        writer = SummaryWriter(log_dir="runs/Semseg_Depth_v4")
     else:
         writer=None
     # ---------------TRAIN--------------------------------------

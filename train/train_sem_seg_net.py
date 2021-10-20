@@ -16,7 +16,7 @@ from utils.tensorize_batch import tensorize_batch
 from utils.convert_tensor_to_RGB import convert_tensor_to_RGB
 
 
-from eval_sem_seg import eval_sem_seg
+from eval_scripts.eval_sem_seg import eval_sem_seg
 
 from torch.utils.tensorboard import SummaryWriter
 

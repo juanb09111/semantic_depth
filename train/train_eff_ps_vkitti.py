@@ -13,7 +13,7 @@ from utils.tensorize_batch import tensorize_batch
 
 from utils.get_stuff_thing_classes import get_stuff_thing_classes
 from utils.data_loader_2_coco_ann import data_loader_2_coco_ann
-from eval_coco import evaluate
+from eval_scripts.eval_coco import evaluate
 
 from torch.utils.tensorboard import SummaryWriter
 

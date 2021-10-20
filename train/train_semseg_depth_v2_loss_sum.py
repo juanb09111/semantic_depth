@@ -15,7 +15,7 @@ from utils.get_vkitti_dataset_full import get_dataloaders
 from utils.tensorize_batch import tensorize_batch
 from utils.convert_tensor_to_RGB import convert_tensor_to_RGB
 
-from eval_sem_seg_depth import eval_sem_seg_depth
+from eval_scripts.eval_sem_seg_depth import eval_sem_seg_depth
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -118,7 +118,7 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, schedule
         max_epochs = trainer_engine.state.max_epochs
         i = trainer_engine.state.iteration
         weights_path = "{}{}_loss_{}.pth".format(
-            constants.MODELS_LOC, "Semseg_Depth", batch_loss)
+            constants.MODELS_LOC, "Semseg_Depth_v2_loss_sum_v2", batch_loss)
         # state_dict = model.state_dict()
 
         if rank == 0:
@@ -183,13 +183,14 @@ def __setup_state_wrapper(start_epoch):
         engine.state.epoch = start_epoch
     return __setup_state
 
+
 def train(gpu, args):
     # DP
     args.gpu = gpu
     print('gpu:', gpu)
     # rank calculation for each process per gpu so that they can be identified uniquely.
-    rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
-    # rank = args.local_ranks * args.ngpus + gpu
+    # rank = int(os.environ.get("SLURM_NODEID")) * args.ngpus + gpu
+    rank = args.local_ranks * args.ngpus + gpu
     print('rank:', rank)
     # Boilerplate code to initialize the parallel prccess.
     # It looks for ip-address and port which we have set as environ variable.
@@ -215,13 +216,13 @@ def train(gpu, args):
 
     # Write results in text file
     
-    res_filename = "results_{}".format("Semseg_Depth")
+    res_filename = "results_{}".format("Semseg_Depth_v2_loss_sum_v2")
     train_res_file = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), constants.RES_LOC, res_filename)
 
     with open(train_res_file, "w+") as training_results:
         training_results.write(
-            "----- TRAINING RESULTS - Vkitti {} ----".format("Semseg_Depth")+"\n")
+            "----- TRAINING RESULTS - Vkitti {} ----".format("Semseg_Depth_v2_loss_sum_v2")+"\n")
     # Set device
     temp_variables.DEVICE = args.gpu
     
@@ -230,8 +231,8 @@ def train(gpu, args):
     torch.cuda.empty_cache()
 
     # Get model according to config
-    model = models.get_model_by_name("Semseg_Depth").cuda(args.gpu)
-    
+    model = models.get_model_by_name("Semseg_Depth_v2_loss_sum").cuda(args.gpu)
+
     # move model to the right device
 
     model = torch.nn.parallel.DistributedDataParallel(
@@ -271,6 +272,11 @@ def train(gpu, args):
         data_loader_train = torch.load(config_kitti.DATA_LOADER_TRAIN_FILANME)
         data_loader_val = torch.load(config_kitti.DATA_LOADER_VAL_FILENAME)
 
+        # # Dataloader to coco ann for evaluation purposes
+        # annotation = os.path.join(os.path.dirname(os.path.abspath(
+        #     __file__)), config_kitti.COCO_ANN)
+        # data_loader_2_coco_ann(config_kitti.DATA_LOADER_VAL_FILENAME, annotation)
+
     else:
 
         imgs_root = os.path.join(os.path.dirname(os.path.abspath(
@@ -308,17 +314,18 @@ def train(gpu, args):
         # data_loader_2_coco_ann(data_loader_val_filename, annotation)
 
     if rank ==0:
-        writer = SummaryWriter(log_dir="runs/Semseg_Depth")
+        writer = SummaryWriter(log_dir="runs/Semseg_Depth_v2_loss_sum_v2")
     else:
         writer=None
     # ---------------TRAIN--------------------------------------
+
     scheduler = MultiStepLR(optimizer, milestones=[65, 80, 85, 90], gamma=0.1)
     ignite_engine = Engine(__update_model_wrapper(model, optimizer, args.gpu, rank, writer))
-    
-    if  args.checkpoint is not None:
+
+    if args.checkpoint is not None:
         epoch = checkpoint['epoch']
         ignite_engine.add_event_handler(Events.STARTED, __setup_state_wrapper(epoch))
-
+    # ignite_engine.add_event_handler(Events.ITERATION_STARTED, scheduler)
     ignite_engine.add_event_handler(
         Events.ITERATION_COMPLETED(every=100), __log_training_loss_wrapper(optimizer, train_res_file))
     ignite_engine.add_event_handler(

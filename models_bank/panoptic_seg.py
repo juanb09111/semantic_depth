@@ -6,19 +6,13 @@ from torch import nn
 import torch.nn.functional as F
 import torchvision
 
-# from backbones_bank.tunned_maskrcnn.utils.backbone_utils import resnet_fpn_backbone
-# from backbones_bank.tunned_maskrcnn.mask_rcnn import MaskRCNN, maskrcnn_resnet50_fpn
 
 from models_bank.maskrcnn.detection import maskrcnn_resnet50_fpn
 from models_bank.maskrcnn.detection.backbone_utils import resnet_fpn_backbone
 
-# from torchvision.models._utils import IntermediateLayerGetter
-# from torchvision.models.detection import maskrcnn_resnet50_fpn
-
 
 import config_kitti
 
-# print(IntermediateLayerGetter)
 
 #%%
 

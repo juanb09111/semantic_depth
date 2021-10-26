@@ -265,7 +265,7 @@ model_urls = {
 
 
 def maskrcnn_resnet50_fpn(pretrained=False, progress=True,
-                          num_classes=91, pretrained_backbone=True, **kwargs):
+                          num_classes=91, pretrained_backbone=True, backbone=None, **kwargs):
     """
     Constructs a Mask R-CNN model with a ResNet-50-FPN backbone.
 
@@ -314,6 +314,10 @@ def maskrcnn_resnet50_fpn(pretrained=False, progress=True,
     if pretrained:
         # no need to download the backbone if pretrained is set
         pretrained_backbone = False
+    
+    if backbone is None:
+        backbone = resnet_fpn_backbone('resnet50', pretrained_backbone)
+       
     # backbone = resnet_fpn_backbone('resnet50', pretrained_backbone)
     model = MaskRCNN(backbone, num_classes, **kwargs)
     if pretrained:

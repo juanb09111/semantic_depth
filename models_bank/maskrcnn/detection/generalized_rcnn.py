@@ -34,12 +34,12 @@ class GeneralizedRCNN(nn.Module):
         self._has_warned = False
 
     @torch.jit.unused
-    def eager_outputs(self, losses, detections):
+    def eager_outputs(self, losses, detections, features):
         # type: (Dict[str, Tensor], List[Dict[str, Tensor]]) -> Tuple[Dict[str, Tensor], List[Dict[str, Tensor]]]
         if self.training:
-            return losses
+            return losses, features
 
-        return detections
+        return detections, features
 
     def forward(self, images, targets=None):
         # type: (List[Tensor], Optional[List[Dict[str, Tensor]]])
@@ -81,4 +81,4 @@ class GeneralizedRCNN(nn.Module):
                 self._has_warned = True
             return (losses, detections)
         else:
-            return self.eager_outputs(losses, detections)
+            return self.eager_outputs(losses, detections, features)

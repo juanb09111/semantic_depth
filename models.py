@@ -106,4 +106,4 @@ def get_model_by_name(model_name):
                             config_kitti.NUM_STUFF_CLASSES,
                             config_kitti.CROP_OUTPUT_SIZE,
                             pre_trained_backboned=config_kitti.PRE_TRAINED_BACKBONE,
-                            backbone=config_kitti.BACKBONE)
+                            backbone_name=config_kitti.BACKBONE)

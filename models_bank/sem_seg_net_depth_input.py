@@ -7,7 +7,7 @@ from torch import nn
 import torch.nn.functional as F
 import torchvision
 
-from backbones_bank.tunned_maskrcnn.utils.backbone_utils import resnet_fpn_backbone
+from models_bank.maskrcnn.detection.backbone_utils import resnet_fpn_backbone
 
 import config_kitti
 

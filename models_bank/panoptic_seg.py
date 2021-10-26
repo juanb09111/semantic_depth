@@ -12,13 +12,13 @@ import torchvision
 from models_bank.maskrcnn.detection import maskrcnn_resnet50_fpn
 from models_bank.maskrcnn.detection.backbone_utils import resnet_fpn_backbone
 
-from torchvision.models._utils import IntermediateLayerGetter
+# from torchvision.models._utils import IntermediateLayerGetter
 # from torchvision.models.detection import maskrcnn_resnet50_fpn
 
 
 import config_kitti
 
-print(IntermediateLayerGetter)
+# print(IntermediateLayerGetter)
 
 #%%
 
@@ -39,7 +39,7 @@ class PanopticSeg(nn.Module):
         # backbone.body.conv1 = nn.Conv2d(48, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         self.mask_rcnn = maskrcnn_resnet50_fpn(
             pretrained=False, backbone=self.backbone, num_classes=num_ins_classes + 1, min_size=min_size, max_size=max_size)
-        print(self.mask_rcnn)
+        
         self.semantic_head = sem_seg_head(
             backbone_out_channels,
             num_ins_classes + num_sem_classes + 1, input_image_size, depthwise_conv=config_kitti.SEMANTIC_HEAD_DEPTHWISE_CONV)
@@ -88,9 +88,3 @@ class PanopticSeg(nn.Module):
         else:
             return [{**maskrcnn_results[idx], 'semantic_logits': semantic_logits[idx]} for idx, _ in enumerate(images)]
 
-PanopticSeg(config_kitti.BACKBONE_OUT_CHANNELS,
-                            config_kitti.NUM_THING_CLASSES,
-                            config_kitti.NUM_STUFF_CLASSES,
-                            config_kitti.CROP_OUTPUT_SIZE,
-                            pre_trained_backboned=config_kitti.PRE_TRAINED_BACKBONE,
-                            backbone_name=config_kitti.BACKBONE)

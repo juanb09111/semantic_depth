@@ -8,7 +8,7 @@ from common_blocks.depth_wise_sep_conv import depth_wise_sep_conv
 from common_blocks.continuous_conv import ContinuousConvolution
 from segmentation_heads.sem_seg import segmentation_head as sem_seg_head
 from segmentation_heads.sem_seg_with_depth import segmentation_head as sem_seg_with_depth
-from backbones_bank.tunned_maskrcnn.utils.backbone_utils import resnet_fpn_backbone
+from models_bank.maskrcnn.detection.backbone_utils import resnet_fpn_backbone
 
 
 import config_kitti

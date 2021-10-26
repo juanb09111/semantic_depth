@@ -12,11 +12,11 @@ from common_blocks.continuous_conv import ContinuousConvolution
 from common_blocks.depth_wise_sep_conv import depth_wise_sep_conv
 
 
-from backbones_bank.tunned_maskrcnn.utils.backbone_utils import resnet_fpn_backbone
+from models_bank.maskrcnn.detection.backbone_utils import resnet_fpn_backbone
 
 import config_kitti
 import temp_variables
-from backbones_bank.tunned_maskrcnn.mask_rcnn import MaskRCNN, maskrcnn_resnet50_fpn
+from models_bank.maskrcnn.detection.mask_rcnn import MaskRCNN, maskrcnn_resnet50_fpn
 import matplotlib.pyplot as plt
 
 def map_backbone(backbone_net_name, original_aspect_ratio=None):

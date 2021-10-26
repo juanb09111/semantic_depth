@@ -43,4 +43,4 @@ ANN_VAL_DEFAULT_NAME_BG = "coco_ann_val_bg.json"
 ANN_TRAIN_DEFAULT_NAME_BG = "coco_ann_train_bg.json"
 #EVALUATION
 
-COCO_RES_JSON_FILENAME = "tmp/res/instances_val_obj_results.json"
+COCO_RES_JSON_FILENAME = "tmp/coco_ann/COCO_val_res.json"

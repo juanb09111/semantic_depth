@@ -30,8 +30,7 @@ def map_cat(cats_arr, all_cat, things_cat):
     cat_names = list(map(lambda c: things_cat[c-1]["name"], cats_arr))
 
     # map name to obj
-    objs = list(map(lambda name: list(
-        filter(lambda obj: obj["name"] == name, all_cat))[0], cat_names))
+    objs = list(map(lambda name: list(filter(lambda obj: obj["name"] == name, all_cat))[0], cat_names))
 
     new_cats = list(map(lambda obj: obj["id"], objs))
 
@@ -77,7 +76,7 @@ def eval_panoptic(model, data_loader_val, weights_file, all_cat, things_cat, dev
     model.load_state_dict(torch.load(weights_file)["state_dict"])
     # move model to the right device
     model.to(device)
-
+    res = []
     iou_arr = []
     for images, anns, _, _, _, _, _, _, _ in data_loader_val:
 
@@ -107,14 +106,79 @@ def eval_panoptic(model, data_loader_val, weights_file, all_cat, things_cat, dev
                 iou = mIOU(semantic_mask, semantic_logits)
                 iou_arr.append(iou)
 
+
+                #COCO eval
+                image_id = anns[idx]['image_id'].cpu().data
+                pred_scores = out["scores"].cpu().data.numpy()
+                pred_masks = []
+                pred_boxes = []
+                pred_labels = out['labels'].cpu().data.numpy()
+                # print("labels", pred_labels)
+                if "masks" in out.keys():
+                    pred_masks = out["masks"].cpu().data.numpy()
+
+                if "boxes" in out.keys():
+                    pred_boxes = out["boxes"].cpu().data.numpy()
+                    # print("len boxes:", len(pred_boxes))
+
+                mapped_pred_labels = map_cat(
+                    np.array(pred_labels), all_cat, things_cat)
+
+                for i, _ in enumerate(pred_scores):
+                    if int(pred_labels[i]) > 0:
+                        obj = {"image_id": image_id[0].numpy().tolist(),
+                               "category_id": mapped_pred_labels[i],
+                               "score": pred_scores[i].item()}
+                        if "masks" in out.keys():
+                            bimask = pred_masks[i] > 0.5
+                            bimask = np.array(
+                                bimask[0, :, :, np.newaxis], dtype=np.uint8, order="F")
+
+                            encoded_mask = mask.encode(
+                                np.asfortranarray(bimask))[0]
+                            encoded_mask['counts'] = encoded_mask['counts'].decode(
+                                "utf-8")
+                            obj['segmentation'] = encoded_mask
+                        if "boxes" in out.keys():
+                            bbox = pred_boxes[i]
+                            bbox_coco = [int(bbox[0]), int(bbox[1]), int(
+                                bbox[2]) - int(bbox[0]), int(bbox[3]) - int(bbox[1])]
+                            obj['bbox'] = bbox_coco
+
+                        res.append(obj)
+
         torch.cuda.empty_cache()
     
     # COCO evaluation 
     val_ann_filename = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), "..", constants.COCO_ANN_LOC, constants.ANN_VAL_DEFAULT_NAME)
 
+    # COCO res file
+    with open(constants.COCO_RES_JSON_FILENAME, 'w') as res_file:
+        json.dump(res, res_file)
+
     # # Make coco api from annotation file
     coco_gt = COCO(val_ann_filename)
+
+
+    # Load res with coco.loadRes
+    coco_dt = coco_gt.loadRes(constants.COCO_RES_JSON_FILENAME)
+    # Get the list of images
+    img_ids = sorted(coco_gt.getImgIds())
+
+    train_res_file = os.path.join(os.path.dirname(
+            os.path.abspath(__file__)), "..", constants.RES_LOC, constants.EVAL_RES_FILENAME)
+    
+    fo = open(train_res_file, 'a+')
+    sys.stdout = fo
+    for iou_type in config_kitti.IOU_TYPES:
+        coco_eval = cocoeval.COCOeval(coco_gt, coco_dt, iou_type)
+        coco_eval.params.img_ids = img_ids
+        coco_eval.evaluate()
+        coco_eval.accumulate()
+        coco_eval.summarize()
+
+    
 
     return np.mean(iou_arr), imgs[0], anns[0]["semantic_mask"], outputs[0]["semantic_logits"]
 

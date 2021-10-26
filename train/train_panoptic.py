@@ -100,7 +100,7 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, all_cate
         max_epochs = trainer_engine.state.max_epochs
         i = trainer_engine.state.iteration
         weights_path = "{}{}_loss_{}.pth".format(
-            constants.MODELS_LOC, "SemsegNet", batch_loss)
+            constants.MODELS_LOC, "Panoptic_Seg", batch_loss)
         
         if rank == 0:
             dict_model = {
@@ -192,7 +192,7 @@ def train(gpu, args):
     #     params, lr=0.005, momentum=0.9, weight_decay=0.00005)
 
     optimizer = torch.optim.SGD(
-        params, lr=0.0016, momentum=0.9, weight_decay=0.00005)
+        params, lr=0.0002, momentum=0.9, weight_decay=0.00005)
 
     
     if args.checkpoint is not None:
@@ -262,7 +262,7 @@ def train(gpu, args):
         data_loader_2_coco_ann(data_loader_val_filename, annotation)
 
     if rank ==0:
-        writer = SummaryWriter(log_dir="runs/SemsegNet")
+        writer = SummaryWriter(log_dir="runs/Panoptic")
     else:
         writer=None
 

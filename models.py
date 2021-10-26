@@ -11,6 +11,8 @@ from models_bank.sem_seg_depth_v2_loss_sum import Semseg_Depth as Semseg_Depth_v
 from models_bank.sem_seg_depth_v4 import Semseg_Depth as Semseg_Depth_v4
 from models_bank.sem_seg_depth_v3 import Semseg_Depth as Semseg_Depth_v3
 from models_bank.sem_seg_net_depth_input import SemsegNet_DepthInput
+from models_bank.panoptic_seg import PanopticSeg
+
 import config_kitti
 
 MODELS = ["FuseNet",
@@ -21,7 +23,8 @@ MODELS = ["FuseNet",
           "Semseg_Depth_v3",
           "Semseg_Depth_v4",
           "SemsegNet_DepthInput",
-          "FuseNet_v2"]
+          "FuseNet_v2",
+          "PanopticSeg"]
 
 
 def get_model_by_name(model_name):
@@ -96,3 +99,11 @@ def get_model_by_name(model_name):
                                config_kitti.NUM_STUFF_CLASSES,
                                config_kitti.CROP_OUTPUT_SIZE,
                                n_number=config_kitti.N_NUMBER)
+    
+    if model_name == "PanopticSeg":
+        return PanopticSeg(config_kitti.BACKBONE_OUT_CHANNELS,
+                            config_kitti.NUM_THING_CLASSES,
+                            config_kitti.NUM_STUFF_CLASSES,
+                            config_kitti.CROP_OUTPUT_SIZE,
+                            pre_trained_backboned=config_kitti.PRE_TRAINED_BACKBONE,
+                            backbone=config_kitti.BACKBONE)

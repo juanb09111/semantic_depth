@@ -428,17 +428,22 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 
-def get_dataloaders(batch_size, imgs_root, depth_root, annotation, num_replicas, rank, split=False, val_size=0.20, n_samples=None):
+def get_dataloaders(batch_size, imgs_root, depth_root, annotation, num_replicas, rank, split=False, val_size=0.20, n_samples=None, sampler=True):
 
     if split:
         train_set, val_set = get_datasets(
-            imgs_root, depth_root, annotation, split=True, val_size=0.20, n_samples=n_samples)
+            imgs_root, depth_root, annotation, split=True, val_size=val_size, n_samples=n_samples)
+        
 
-        train_sampler = torch.utils.data.distributed.DistributedSampler(
-            train_set, num_replicas=num_replicas, rank=rank, shuffle=True)
+        train_sampler = None
+        val_sampler = None
 
-        val_sampler = torch.utils.data.distributed.DistributedSampler(
-            val_set, num_replicas=num_replicas, rank=rank, shuffle=True)
+        if sampler:
+            train_sampler = torch.utils.data.distributed.DistributedSampler(
+                train_set, num_replicas=num_replicas, rank=rank, shuffle=True)
+
+            val_sampler = torch.utils.data.distributed.DistributedSampler(
+                val_set, num_replicas=num_replicas, rank=rank, shuffle=True)
 
         data_loader_train = torch.utils.data.DataLoader(train_set,
                                                         batch_size=batch_size,
@@ -457,7 +462,7 @@ def get_dataloaders(batch_size, imgs_root, depth_root, annotation, num_replicas,
 
     else:
         dataset = get_datasets(imgs_root, depth_root, annotation,
-                               split=False, val_size=0.20, n_samples=n_samples)
+                               split=False, val_size=val_size, n_samples=n_samples)
 
         data_loader = torch.utils.data.DataLoader(dataset,
                                                   batch_size=batch_size,

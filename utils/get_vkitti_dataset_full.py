@@ -37,7 +37,7 @@ def get_vkitti_files(dirName, ext):
 
 
 class vkittiDataset(torch.utils.data.Dataset):
-    def __init__(self, imgs_root, depth_root, annotation, transforms, n_samples=None, shuffle=False):
+    def __init__(self, imgs_root, depth_root, annotation, transforms, n_samples=None, shuffle=True):
 
         self.imgs_root = imgs_root
         self.depth_root = depth_root
@@ -46,8 +46,8 @@ class vkittiDataset(torch.utils.data.Dataset):
 
         # get ids and shuffle
         self.ids = list(sorted(self.coco.imgs.keys()))
-        if shuffle:
-            random.shuffle(self.ids)
+        # if shuffle:
+        #     random.Random(4).shuffle(self.ids)
 
         catIds = self.coco.getCatIds()
         categories = self.coco.loadCats(catIds)
@@ -399,10 +399,10 @@ def get_transform(resize=False, normalize=False, crop=False):
     return transforms.Compose(custom_transforms)
 
 
-def get_datasets(imgs_root, depth_root, annotation, split=False, val_size=0.20, n_samples=None):
+def get_datasets(imgs_root, depth_root, annotation, split=False, val_size=0.20, n_samples=None, shuffle=True):
     # imgs_root, depth_root, annotation
     vkitti_dataset = vkittiDataset(
-        imgs_root, depth_root, annotation, transforms=get_transform, n_samples=n_samples)
+        imgs_root, depth_root, annotation, transforms=get_transform, n_samples=n_samples, shuffle=True)
     if split:
         if val_size >= 1:
             raise AssertionError(
@@ -428,11 +428,11 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 
-def get_dataloaders(batch_size, imgs_root, depth_root, annotation, num_replicas, rank, split=False, val_size=0.20, n_samples=None, sampler=True):
+def get_dataloaders(batch_size, imgs_root, depth_root, annotation, num_replicas, rank, split=False, val_size=0.20, n_samples=None, sampler=True, shuffle=True):
 
     if split:
         train_set, val_set = get_datasets(
-            imgs_root, depth_root, annotation, split=True, val_size=val_size, n_samples=n_samples)
+            imgs_root, depth_root, annotation, split=True, val_size=val_size, n_samples=n_samples, shuffle=True)
         
 
         train_sampler = None
@@ -462,7 +462,7 @@ def get_dataloaders(batch_size, imgs_root, depth_root, annotation, num_replicas,
 
     else:
         dataset = get_datasets(imgs_root, depth_root, annotation,
-                               split=False, val_size=val_size, n_samples=n_samples)
+                               split=False, val_size=val_size, n_samples=n_samples, shuffle=True)
 
         data_loader = torch.utils.data.DataLoader(dataset,
                                                   batch_size=batch_size,

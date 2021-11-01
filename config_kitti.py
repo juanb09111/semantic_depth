@@ -49,4 +49,5 @@ COCO_ANN = "kitti2coco_ann.json"
 # --------EVALUATION---------------
 MODEL_WEIGHTS_FILENAME = "tmp/models/EfusionPS_V3_depth_loss_0.6401694336146243.pth"
 DATA_LOADER = None
+IOU_TYPES = ["bbox", "segm"]
 

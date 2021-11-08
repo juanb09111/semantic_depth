@@ -13,9 +13,9 @@ PRE_TRAINED_BACKBONE = False
 ORIGINAL_INPUT_SIZE_HW = (200, 1000)
 # ORIGINAL_INPUT_SIZE_HW = (200, 1000)
 RESIZE = 0.5
-CROP_OUTPUT_SIZE = (200, 1000)
-MIN_SIZE = 200 
-MAX_SIZE = 1200 
+CROP_OUTPUT_SIZE = (350, 1200)
+MIN_SIZE = 200  
+MAX_SIZE = 1300 
 
 # for k-nn
 K_NUMBER = 9
@@ -44,10 +44,31 @@ USE_PREEXISTING_DATA_LOADERS = False
 DATA_LOADER_TRAIN_FILANME = "tmp/data_loaders/vkitti_data_loader_train_625_samples.pth"
 DATA_LOADER_VAL_FILENAME = "tmp/data_loaders/vkitti_data_loader_val_625_samples.pth"
 
-COCO_ANN = "kitti2coco_ann.json"
+COCO_ANN = "kitti2coco_ann_crop.json"
 
 # --------EVALUATION---------------
 MODEL_WEIGHTS_FILENAME = "tmp/models/EfusionPS_V3_depth_loss_0.6401694336146243.pth"
 DATA_LOADER = None
 IOU_TYPES = ["bbox", "segm"]
 
+
+# ----- INFERENCE-----------------
+
+
+# # Object tracking
+INFERENCE_DATA = "data/"
+# INFERENCE_DATA = "data_vkitti_video"
+OBJECT_TRACKING = False
+# COCO_ANN_INFERNECE = "kitti_video_2_coco_ordered.json"
+COCO_ANN_INFERNECE = "kitti2coco_ann_crop.json"
+OUTPUT_FOLDER = "Panoptic_seg_TRAIN_crop_120s_200_1300"
+
+MAX_DETECTIONS = 50 # Maximum number of tracked objects
+NUM_FRAMES = 5 # Number of frames before recycling the ids
+
+# Make video
+
+# VIDEO_CONTAINER_FOLDER = "data_vkitti_video/vkitti_2.0.3_Panoptic/Scene20/morning/frames/rgb/Camera_0"
+VIDEO_CONTAINER_FOLDER = "results/Panoptic_seg_rt"
+VIDEO_OUTOUT_FILENAME = "Panoptic_seg_rt.avi"
+FPS = 5

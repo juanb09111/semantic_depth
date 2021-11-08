@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import os.path
 import json
-import temp_variables
+
 import matplotlib.pyplot as plt
 from .apply_panoptic_mask_gpu import apply_panoptic_mask_gpu
 import time
@@ -35,7 +35,7 @@ def threshold_instances(preds, threshold=0.5):
 
     return preds
 
-def filter_by_class(preds, exclude_ins_classes=[], excluded_sem_classes=[]):
+def filter_by_class(preds, device, exclude_ins_classes=[], excluded_sem_classes=[]):
     
     for i in range(len(preds)):
         mask_logits, bbox_pred, class_pred, confidence, semantic_logits = preds[i][
@@ -47,7 +47,7 @@ def filter_by_class(preds, exclude_ins_classes=[], excluded_sem_classes=[]):
 
         # filter instances by class
         included_ins_classes = torch.as_tensor([c not in exclude_ins_classes for c in class_pred])
-        indices = torch.tensor(torch.where((included_ins_classes == True))[0], device=temp_variables.DEVICE)
+        indices = torch.tensor(torch.where((included_ins_classes == True))[0], device=device)
 
 
         mask_logits = torch.index_select(mask_logits, 0, indices)
@@ -247,7 +247,9 @@ def fuse_logits(MLA, MLB):
     return fl_batch
 
 
-def panoptic_fusion(preds, all_categories, stuff_categories, thing_categories, threshold_by_confidence=True, sort_confidence=True):
+def panoptic_fusion(preds, all_categories, stuff_categories, thing_categories, device, threshold_by_confidence=True, sort_confidence=True):
+
+    print("DEVICE!!!!!!!!!!!!!!!!!!!!", device)
 
     inter_pred_batch = []
     sem_pred_batch = []
@@ -269,7 +271,7 @@ def panoptic_fusion(preds, all_categories, stuff_categories, thing_categories, t
     # Add background class 0
     stuff_cat_idx = [0, *[x + 1 for x in stuff_cat_idx]]
 
-    stuff_cat_idx = torch.LongTensor(stuff_cat_idx).to(temp_variables.DEVICE)
+    stuff_cat_idx = torch.LongTensor(stuff_cat_idx).to(device)
 
     if threshold_by_confidence:
         preds = threshold_instances(preds)
@@ -300,7 +302,7 @@ def panoptic_fusion(preds, all_categories, stuff_categories, thing_categories, t
 
         if fused_logits is not None:
 
-            fused_logits = fused_logits.to(temp_variables.DEVICE)
+            fused_logits = fused_logits.to(device)
 
 
             # Intermediate logits
@@ -335,10 +337,10 @@ def panoptic_fusion(preds, all_categories, stuff_categories, thing_categories, t
     return inter_pred_batch, sem_pred_batch, summary_batch
 
 
-def map_stuff(x, classes_arr):
+def map_stuff(x, classes_arr, device):
 
     res = torch.zeros_like(x)
-    default_value = torch.tensor(0).to(temp_variables.DEVICE)
+    default_value = torch.tensor(0).to(device)
 
     for c in classes_arr:
         y = torch.where(x == c, x, default_value)
@@ -348,9 +350,9 @@ def map_stuff(x, classes_arr):
     return res
 
 
-def map_things(x, classes_arr):
+def map_things(x, classes_arr, device):
     res = torch.zeros_like(x)
-    default_value = torch.tensor(0).to(temp_variables.DEVICE)
+    default_value = torch.tensor(0).to(device)
 
     for c in classes_arr:
         y = torch.where(x != c, x, default_value)
@@ -360,7 +362,7 @@ def map_things(x, classes_arr):
     return res
 
 
-def panoptic_canvas(inter_pred_batch, sem_pred_batch, all_categories, stuff_categories, thing_categories):
+def panoptic_canvas(inter_pred_batch, sem_pred_batch, all_categories, stuff_categories, thing_categories, device):
 
     batch_size = len(inter_pred_batch)
 
@@ -386,7 +388,7 @@ def panoptic_canvas(inter_pred_batch, sem_pred_batch, all_categories, stuff_cate
     stuff_in_inter_pred_idx = [x for x in range(len(stuff_cat_idx))]
     # print("stuff_in_inter_pred_idx", stuff_in_inter_pred_idx)
 
-    default_value = torch.tensor(0).to(temp_variables.DEVICE)
+    default_value = torch.tensor(0).to(device)
     for i in range(batch_size):
 
         inter_pred = inter_pred_batch[i]
@@ -401,9 +403,9 @@ def panoptic_canvas(inter_pred_batch, sem_pred_batch, all_categories, stuff_cate
         else:
             # canvases in GPU
 
-            stuff_canvas_gpu = map_stuff(sem_pred, stuff_cat_idx)
+            stuff_canvas_gpu = map_stuff(sem_pred, stuff_cat_idx, device)
 
-            things_canvas_gpu = map_things(inter_pred, stuff_in_inter_pred_idx)
+            things_canvas_gpu = map_things(inter_pred, stuff_in_inter_pred_idx, device)
             panoptic_canvas_gpu = torch.where(
                 things_canvas_gpu == default_value, stuff_canvas_gpu, things_canvas_gpu)
             

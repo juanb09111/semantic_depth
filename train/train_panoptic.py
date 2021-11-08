@@ -246,7 +246,8 @@ def train(gpu, args):
             split=True,
             val_size=config_kitti.VAL_SIZE,
             n_samples=config_kitti.MAX_TRAINING_SAMPLES,
-            sampler=False)
+            sampler=False,
+            shuffle=False)
 
         # save data loaders
         data_loader_train_filename = os.path.join(os.path.dirname(

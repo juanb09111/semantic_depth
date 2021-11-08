@@ -49,10 +49,22 @@ if __name__ == "__main__":
 
     parser.add_argument('--model_name', type=str, required=True, help="Name of the model to train. Look up in models.py")
     parser.add_argument('--batch_size', type=int, required=True, help="Batch size")
-    parser.add_argument('--checkpoint', type=str, default=None, help="Pretrained weights")
+    parser.add_argument('--checkpoint', type=str, required=True, help="Pretrained weights")
+    parser.add_argument('--categories_json', type=str, required=True, help="Categories, COCO format json file. No annotations required, categories only.")
+    parser.add_argument('--dst', type=str, required=True, help="Output folder")
+    parser.add_argument('--data_source', type=str, default=None, help="Pytorch Dataloader. If None dataloader is required")
+ 
+   
 
     args = parser.parse_args()
-    
+
+    if ".pth" in args.data_source:
+        args.data_folder = None
+        args.dataloader = args.data_source
+    else:
+        args.dataloader = None
+        args.data_folder = args.data_source
+    print(args)
     if args.checkpoint == "":
         args.checkpoint = None
 

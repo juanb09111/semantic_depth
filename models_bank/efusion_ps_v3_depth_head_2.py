@@ -12,11 +12,11 @@ from common_blocks.continuous_conv import ContinuousConvolution
 from common_blocks.depth_wise_sep_conv import depth_wise_sep_conv
 
 
-from backbones_bank.tunned_maskrcnn.utils.backbone_utils import resnet_fpn_backbone
+from models_bank.maskrcnn.detection.backbone_utils import resnet_fpn_backbone
 
 import config_kitti
 import temp_variables
-from backbones_bank.tunned_maskrcnn.mask_rcnn import MaskRCNN, maskrcnn_resnet50_fpn
+from models_bank.maskrcnn.detection.mask_rcnn import MaskRCNN, maskrcnn_resnet50_fpn
 import matplotlib.pyplot as plt
 
 def map_backbone(backbone_net_name, original_aspect_ratio=None):
@@ -335,48 +335,3 @@ class EfusionPS(nn.Module):
             return [{ 'semantic_logits': semantic_logits[idx], 'depth': out[idx]} for idx, _ in enumerate(images)]
 
 
-# device = torch.device(
-#     'cuda') if torch.cuda.is_available() else torch.device('cpu')
-# print("Device: ", device)
-# temp_variables.DEVICE = device
-
-# train_dir = os.path.join(os.path.dirname(
-#     os.path.abspath(__file__)), "..", constants.TRAIN_DIR)
-
-
-# train_ann_filename = os.path.join(os.path.dirname(
-#     os.path.abspath(__file__)), "..", constants.COCO_ANN_LOC, constants.ANN_TRAIN_DEFAULT_NAME)
-
-# coco_ann_train = os.path.join(os.path.dirname(
-#     os.path.abspath(__file__)), "..", train_ann_filename)
-# data_loader_train = get_datasets.get_dataloaders(
-#     config.BATCH_SIZE, train_dir, annotation=coco_ann_train, semantic_masks_folder=config.SEMANTIC_SEGMENTATION_DATA_LOC)
-
-
-# iterator = iter(data_loader_train)
-
-# images, anns = next(iterator)
-# images = tensorize_batch(images, device)
-
-# # images = list(image for image in images)
-
-# annotations = [{k: v.to(device) for k, v in t.items()}
-#                for t in anns]
-
-# model = EfficientPS(config.BACKBONE,
-#                     config.BACKBONE_OUT_CHANNELS,
-#                     config.NUM_THING_CLASSES,
-#                     config.NUM_STUFF_CLASSES,
-#                     config.ORIGINAL_INPUT_SIZE_HW)
-
-# model.to(device)
-# model.train()
-
-# losses = model(images, anns=annotations, semantic=True, instance=True)
-
-# print(losses)
-# # model.eval()
-
-# # with torch.no_grad():
-# #     predictions = model(images)
-# #     print(predictions)

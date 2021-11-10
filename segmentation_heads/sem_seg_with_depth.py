@@ -10,7 +10,7 @@ from .MC import MC
 class segmentation_head(nn.Module):
     def __init__(self, in_channels, num_classes, output_resol, depthwise_conv=True):
         super().__init__()
-        print("sem classes", num_classes)
+        
         self.output_resol = output_resol
 
         self.LSFE_P4 = LSFE(in_channels, 128, depthwise_conv=depthwise_conv)
@@ -22,27 +22,32 @@ class segmentation_head(nn.Module):
         self.MC1 = MC(128, 128, depthwise_conv=depthwise_conv)
         self.MC2 = MC(128, 128, depthwise_conv=depthwise_conv)
         # num_classes = N ‘stuff’+‘thing’
-        self.out_conv = nn.Conv2d(512, num_classes, kernel_size=1)
+        # self.out_conv = nn.Conv2d(512, num_classes, kernel_size=1)
+
+        self.out_conv = nn.Sequential(
+            nn.Conv2d(512, num_classes, kernel_size=3),
+            nn.BatchNorm2d(num_classes)
+        )
 
         # self.out_conv_depth = nn.Conv2d(num_classes + 1, num_classes, kernel_size=1)
 
         self.out_conv_depth_1 = nn.Sequential(
-            nn.Conv2d(num_classes + 1, num_classes, kernel_size=1),
-            nn.BatchNorm2d(num_classes)
+            nn.Conv2d(num_classes+1, 256, kernel_size=3),
+            nn.BatchNorm2d(256)
         )
 
-        # self.out_conv_depth_2 = nn.Sequential(
-        #     nn.Conv2d(256, 256, kernel_size=1),
-        #     nn.BatchNorm2d(256)
-        # )
+        self.out_conv_depth_2 = nn.Sequential(
+            nn.Conv2d(256, 256, kernel_size=3),
+            nn.BatchNorm2d(256)
+        )
 
-        # self.out_conv_depth_3 = nn.Sequential(
-        #     nn.Conv2d(256, 256, kernel_size=1),
-        #     nn.BatchNorm2d(256)
-        # )
+        self.out_conv_depth_3 = nn.Sequential(
+            nn.Conv2d(256, 256, kernel_size=3),
+            nn.BatchNorm2d(256)
+        )
 
         self.out_conv_depth_4 = nn.Sequential(
-            nn.Conv2d(num_classes, num_classes, kernel_size=1),
+            nn.Conv2d(256, num_classes, kernel_size=1),
             nn.BatchNorm2d(num_classes)
         )
 
@@ -84,10 +89,12 @@ class segmentation_head(nn.Module):
         x = torch.cat((x, depth_map), dim=1)
 
         x = F.leaky_relu(self.out_conv_depth_1(x))
-        # x = F.leaky_relu(self.out_conv_depth_2(x))
+        x = F.leaky_relu(self.out_conv_depth_2(x))
 
-        # x = F.leaky_relu(self.out_conv_depth_3(x))
+        x = F.leaky_relu(self.out_conv_depth_3(x))
         x = F.leaky_relu(self.out_conv_depth_4(x))
+
+        x = F.interpolate(x, size=self.output_resol, mode="bilinear")
         return x
 
 

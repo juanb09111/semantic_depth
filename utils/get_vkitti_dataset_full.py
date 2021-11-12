@@ -43,12 +43,20 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
         self.imgs_root = imgs_root
         self.source_img_list = get_vkitti_files(imgs_root, "jpg")
 
+
         self.depth_root = depth_root
         
+        if config_kitti.CROP_OUTPUT_SIZE is None:
+            self.crop = False
+        else:
+            self.crop = True
+
         if depth_root is not None :
             depth_files = get_vkitti_files(depth_root, "png")
         else:
             depth_files = None
+
+        
 
         self.depth_imgs = depth_files
 
@@ -168,8 +176,8 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
             # img width and height
 
             if self.transforms is not None:
-                source_img = self.transforms(crop=True)(source_img)
-                depth_img = self.transforms(crop=True)(depth_img)
+                source_img = self.transforms(crop=self.crop)(source_img)
+                depth_img = self.transforms(crop=self.crop)(depth_img)
 
 
             imPts, depth = self.sample_depth_img(depth_img)
@@ -202,7 +210,7 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
             # img width and height
 
             if self.transforms is not None:
-                source_img = self.transforms(crop=True)(source_img)
+                source_img = self.transforms(crop=self.crop)(source_img)
             
             return source_img, basename
 
@@ -210,9 +218,17 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
         return len(self.source_img_list)
 
 class vkittiDataset(torch.utils.data.Dataset):
-    def __init__(self, imgs_root, depth_root, annotation, transforms, n_samples=None, shuffle=True):
+    def __init__(self, imgs_root, semantic_root, annotation, transforms, depth_root=None, n_samples=None, shuffle=True):
 
+        if config_kitti.CROP_OUTPUT_SIZE is None:
+            self.crop = False
+        else:
+            self.crop = True
+            
         self.imgs_root = imgs_root
+
+        self.semantic_root = semantic_root
+        self.semantic_imgs = get_vkitti_files(semantic_root, "png")
         self.depth_root = depth_root
 
         self.coco = COCO(annotation)
@@ -234,8 +250,11 @@ class vkittiDataset(torch.utils.data.Dataset):
         obj_categories = self.coco.loadCats(self.obj_categories_ids)
         self.obj_categories = list(map(lambda x: x['name'], obj_categories))
 
-        depth_files = get_vkitti_files(depth_root, "png")
-        self.depth_imgs = depth_files
+        if depth_root is not None:
+            depth_files = get_vkitti_files(depth_root, "png")
+            self.depth_imgs = depth_files
+        else:
+            self.depth_imgs = None
 
         self.transforms = transforms
 
@@ -355,6 +374,13 @@ class vkittiDataset(torch.utils.data.Dataset):
         # plt.show()
         # imPts in NxHxW
         return imPts[inds, :][:config_kitti.N_NUMBER], depth[inds][:config_kitti.N_NUMBER]
+    
+    def center_crop_mask(self, mask):
+        cropy, cropx = config_kitti.CROP_OUTPUT_SIZE
+        y, x = mask.shape
+        startx = x//2 - cropx//2
+        starty = y//2 - cropy//2    
+        return mask[starty:starty+cropy, startx:startx+cropx]
 
     def get_coco_ann(self, index):
 
@@ -362,22 +388,41 @@ class vkittiDataset(torch.utils.data.Dataset):
         coco = self.coco
         # Image ID
         img_id = self.ids[index]
+        # print("img_id", img_id)
         # List: get object annotations ids from coco
         obj_ann_ids = coco.getAnnIds(
             imgIds=img_id, catIds=self.obj_categories_ids)
         # Dictionary: target coco_annotation file for an image containing only object classes
         coco_annotation = coco.loadAnns(obj_ann_ids)
+
+        # coco.showAnns(coco_annotation, draw_bbox=True)
+        # plt.show()
+ 
         # path for input image
         img_filename = coco.loadImgs(img_id)[0]['loc']
+        # print("img_filename", img_filename)
         # open the input image
         # img = Image.open(path)
 
-        semantic_mask_path = coco.loadImgs(img_id)[0]['semseg_img_filename']
-        # create semantic mask
 
-        semantic_mask_path = os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), "..", config_kitti.DATA, semantic_mask_path)
-        semantic_mask = Image.open(semantic_mask_path)
+        # TODO: find semantic mask
+        scene = img_filename.split("/")[-6]
+        basename = img_filename.split(".")[-2].split("_")[-1]
+
+        semantic_img_filename = [s for s in self.semantic_imgs if (scene in s and basename in s)][0]
+
+        ## ---------------------------------
+        # semantic_mask_path = coco.loadImgs(img_id)[0]['semseg_img_filename']
+        # # create semantic mask
+
+        # semantic_mask_path = os.path.join(os.path.dirname(
+        #     os.path.abspath(__file__)), "..", config_kitti.DATA, semantic_mask_path)
+        semantic_mask_img = Image.open(semantic_img_filename)
+
+        if self.transforms is not None:
+            semantic_mask = self.transforms(crop=self.crop)(semantic_mask_img)*255
+            semantic_mask = torch.as_tensor(
+                semantic_mask, dtype=torch.uint8).squeeze_(0)
 
         # number of objects in the image
         num_objs = len(coco_annotation)
@@ -554,13 +599,9 @@ class vkittiDataset(torch.utils.data.Dataset):
 
 
 def get_transform(resize=False, normalize=False, crop=False):
-    new_size = tuple(np.ceil(x*config_kitti.RESIZE)
-                     for x in config_kitti.ORIGINAL_INPUT_SIZE_HW)
-    new_size = tuple(int(x) for x in new_size)
+    
     custom_transforms = []
-    if resize:
-        print("resizing samples to", new_size)
-        custom_transforms.append(transforms.Resize(new_size))
+    
 
     if crop:
         custom_transforms.append(
@@ -573,14 +614,15 @@ def get_transform(resize=False, normalize=False, crop=False):
     return transforms.Compose(custom_transforms)
 
 
-def get_datasets(imgs_root, depth_root, annotation, split=False, val_size=0.20, n_samples=None, shuffle=True, is_test_set=False):
+def get_datasets(imgs_root, semantic_root, annotation, depth_root=None, split=False, val_size=0.20, n_samples=None, shuffle=True, is_test_set=False):
     # imgs_root, depth_root, annotation
 
     if is_test_set:
         vkitti_dataset = vkitti_test_Dataset(imgs_root, transforms=get_transform, depth_root=depth_root, n_samples=n_samples, shuffle=False)
     else:
         vkitti_dataset = vkittiDataset(
-            imgs_root, depth_root, annotation, transforms=get_transform, n_samples=n_samples, shuffle=shuffle)
+            imgs_root, semantic_root, annotation, transforms=get_transform, depth_root=depth_root, n_samples=n_samples, shuffle=shuffle)
+            
     if split:
         if val_size >= 1:
             raise AssertionError(
@@ -606,11 +648,11 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 
-def get_dataloaders(batch_size, imgs_root, depth_root, annotation, num_replicas, rank, split=False, val_size=0.20, n_samples=None, sampler=True, shuffle=True, is_test_set=False):
+def get_dataloaders(batch_size, imgs_root, semantic_root, depth_root, annotation, num_replicas, rank, split=False, val_size=0.20, n_samples=None, sampler=True, shuffle=True, is_test_set=False):
     
     if split:
         train_set, val_set = get_datasets(
-            imgs_root, depth_root, annotation, split=True, val_size=val_size, n_samples=n_samples, shuffle=shuffle, is_test_set=is_test_set)
+            imgs_root, semantic_root, annotation, depth_root=depth_root, split=True, val_size=val_size, n_samples=n_samples, shuffle=shuffle, is_test_set=is_test_set)
         
 
         train_sampler = None
@@ -639,7 +681,7 @@ def get_dataloaders(batch_size, imgs_root, depth_root, annotation, num_replicas,
         return data_loader_train, data_loader_val
 
     else:
-        dataset = get_datasets(imgs_root, depth_root, annotation,
+        dataset = get_datasets(imgs_root, semantic_root, annotation, depth_root=depth_root,
                                split=False, val_size=val_size, n_samples=n_samples, shuffle=shuffle, is_test_set=is_test_set)
 
         data_loader = torch.utils.data.DataLoader(dataset,

@@ -12,6 +12,7 @@ from models_bank.sem_seg_depth_v4 import Semseg_Depth as Semseg_Depth_v4
 from models_bank.sem_seg_depth_v3 import Semseg_Depth as Semseg_Depth_v3
 from models_bank.sem_seg_net_depth_input import SemsegNet_DepthInput
 from models_bank.panoptic_seg import PanopticSeg
+from models_bank.mask_rcnn import MaskRCNN
 
 import config_kitti
 
@@ -24,7 +25,8 @@ MODELS = ["FuseNet",
           "Semseg_Depth_v4",
           "SemsegNet_DepthInput",
           "FuseNet_v2",
-          "PanopticSeg"]
+          "PanopticSeg",
+          "MaskRcnn"]
 
 
 def get_model_by_name(model_name):
@@ -107,3 +109,5 @@ def get_model_by_name(model_name):
                             config_kitti.CROP_OUTPUT_SIZE,
                             pre_trained_backboned=config_kitti.PRE_TRAINED_BACKBONE,
                             backbone_name=config_kitti.BACKBONE)
+    if model_name == "MaskRcnn":
+        return MaskRCNN(config_kitti.NUM_THING_CLASSES)

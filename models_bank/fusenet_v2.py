@@ -191,8 +191,8 @@ class FuseNet_v2(nn.Module):
 
         out = self.output_layer(fused)
 
-        out = out.squeeze_(1)
-
+        # out = out.squeeze_(1)
+        out = torch.squeeze(out, 1)
         if self.training:
             
             # print("model training")

@@ -1,5 +1,6 @@
-# Semantic Segmentation and Depth completion 
-Semantic segmentation + FuseNet with shared backbone
+# SemSegDepth, Segmentation and Depth completion 
+SemSegDepth: A Combined Model for Semantic Segmentation and
+Depth Completion
 
 # Requirements
 
@@ -28,33 +29,29 @@ conda env create -f conda_environment.yml
 
 # Data
 
-*Download virtual kitti dataset
+*Download virtual kitti dataset from https://europe.naverlabs.com/research/computer-vision/proxy-virtual-worlds-vkitti-2/
 
 # Train with ignite 
 
 
 After having organized your data and set up your config file, simply run:
 
-*For depth completion only
-```
-python train_fusenet_vkitti.py
-```
-*For semantic segmentation only
-```
-python train_sem_seg_net.py
-```
-*For semantic segmentation and depth
-```
-python train_semseg_depth_vkitti.py
-```
-
-The weights are saved every epoch under tmp/models/ and the progress is saved in tmp/res/training_results.txt
 
 ```
+./train.sh Semseg_Depth_v4 2
+```
 
-# TODO:
 
-* Create a Docker container 
+The weights are saved every epoch under tmp/models/ and the progress is saved in tmp/res/results_Semseg_Depth_v4.txt
+
+
+
+# Inference
+
+```
+./inference.sh Semseg_Depth_v4 2 tmp/models/weights_file.pth  COCO.json  your_dst_folder source_folder
+```
+
 <!-- # Commit
 
 To commit to this repository please follow smart commit syntax: https://support.atlassian.com/jira-software-cloud/docs/process-issues-with-smart-commits/ -->

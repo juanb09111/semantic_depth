@@ -29,7 +29,8 @@ conda env create -f conda_environment.yml
 
 # Data
 
-*Download virtual kitti dataset from https://europe.naverlabs.com/research/computer-vision/proxy-virtual-worlds-vkitti-2/
+*Download virtual kitti dataset from https://europe.naverlabs.com/research/computer-vision/proxy-virtual-worlds-vkitti-2/ . Place the dataset under data/
+
 
 # Train with ignite 
 

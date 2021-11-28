@@ -1,113 +1,72 @@
-import config
-import temp_variables
-import constants
-import models
-
-from utils.tensorize_batch import tensorize_batch
-
+# %%
 import os
 import os.path
-from pathlib import Path
-import torch
+import sys
+import torch.multiprocessing as mp
+from argparse import ArgumentParser
+from inference_scripts import inference_depth_completion
+from inference_scripts import inference_Fusenet
+from inference_scripts import inference_panoptic
+from inference_scripts import inference_instance
+from inference_scripts import inference_semseg_depth
+from inference_scripts import inference_semseg_net
+from models import MODELS
+# # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 
-from datetime import datetime
-
-
-from utils import  panoptic_fusion, get_datasets
-from utils.show_segmentation import apply_semantic_mask_gpu, apply_instance_masks, save_fig
-
-
-
-device = torch.device(
-    'cuda') if torch.cuda.is_available() else torch.device('cpu')
-print(device)
-
-temp_variables.DEVICE = device
-torch.cuda.empty_cache()
-
-all_categories, stuff_categories, thing_categories = panoptic_fusion.get_stuff_thing_classes()
-
-
-def view_masks(model,
-               data_loader_val,
-               num_classes,
-               weights_file,
-               result_type,
-               folder,
-               confidence=0.5):
-
-    # Create folde if it doesn't exist
-    Path(folder).mkdir(parents=True, exist_ok=True)
-    # load weights
-    model.load_state_dict(torch.load(weights_file))
-    # move model to the right device
-    model.to(device)
-    for images, anns in data_loader_val:
-        images = list(img for img in images)
-        images = tensorize_batch(images, device)
-        file_names = list(map(lambda ann: ann["file_name"], anns))
-        model.eval()
-        with torch.no_grad():
-
-            outputs = model(images)
-
-            if result_type == "panoptic":
-                panoptic_fusion.get_panoptic_results(
-                    images, outputs, all_categories, stuff_categories, thing_categories, folder, file_names)
-                torch.cuda.empty_cache()
-            else: 
-                for idx, output in enumerate(outputs):
-                    file_name = file_names[idx]
-                    if result_type == "instance":
-                        im = apply_instance_masks(images[idx], output['masks'], 0.5)
-
-                    elif result_type == "semantic":
-                        logits = output["semantic_logits"]
-                        mask = torch.argmax(logits, dim=0)
-                        im = apply_semantic_mask_gpu(images[idx], mask, config.NUM_STUFF_CLASSES + config.NUM_THING_CLASSES)
-                    
-                    save_fig(im, folder, file_name)
-
-                    torch.cuda.empty_cache()
-
+def get_inference_loop(model_name):
+    
+    if model_name == "Semseg_Depth_v4":
+        return inference_semseg_depth.inference
+    if model_name == "PanopticSeg":
+        return inference_panoptic.inference
+    if model_name == "MaskRcnn":
+        return inference_instance.inference
+          
 
 if __name__ == "__main__":
-    torch.cuda.empty_cache()
 
-    test_dir = os.path.join(os.path.dirname(
-        os.path.abspath(__file__)), config.TEST_DIR)
-    data_loader_test = get_datasets.get_dataloaders(
-        config.BATCH_SIZE, test_dir, is_test_set=True)
+    parser = ArgumentParser()
+    parser.add_argument('--nodes', default=1, type=int)
+    parser.add_argument('--local_ranks', default=0, type=int,
+                        help="Node's order number in [0, num_of_nodes-1]")
+    parser.add_argument('--ip_adress', type=str, required=True,
+                        help='ip address of the host node')
 
-    confidence = 0.5
-    model = models.get_model()
+    parser.add_argument('--ngpus', default=4, type=int,
+                        help='number of gpus per node')
 
-    if config.INSTANCE:
-        now = datetime.now()
-        timestamp = datetime.timestamp(now)
-        view_masks(model, data_loader_test, config.NUM_THING_CLASSES,
-                   config.MODEL_WEIGHTS_FILENAME,
-                   "instance",
-                   '{}{}_{}_results_instance_{}'.format(constants.INFERENCE_RESULTS,
-                       config.MODEL, config.BACKBONE, timestamp),
-                   confidence=0.5)
+    parser.add_argument('--model_name', type=str, required=True, help="Name of the model to train. Look up in models.py")
+    parser.add_argument('--batch_size', type=int, required=True, help="Batch size")
+    parser.add_argument('--checkpoint', type=str, required=True, help="Pretrained weights")
+    parser.add_argument('--categories_json', type=str, required=True, help="Categories, COCO format json file. No annotations required, categories only.")
+    parser.add_argument('--dst', type=str, required=True, help="Output folder")
+    parser.add_argument('--data_source', type=str, default=None, help="Pytorch Dataloader. If None dataloader is required")
+ 
+   
 
-    if config.SEMANTIC:
-        now = datetime.now()
-        timestamp = datetime.timestamp(now)
-        view_masks(model, data_loader_test, config.NUM_THING_CLASSES + config.NUM_THING_CLASSES,
-                   config.MODEL_WEIGHTS_FILENAME,
-                   "semantic",
-                   '{}{}_{}_results_semantic_{}'.format(constants.INFERENCE_RESULTS,
-                       config.MODEL, config.BACKBONE, timestamp),
-                   confidence=0.5)
+    args = parser.parse_args()
 
-    if config.PANOPTIC:
-        now = datetime.now()
-        timestamp = datetime.timestamp(now)
-        view_masks(model, data_loader_test, config.NUM_THING_CLASSES + config.NUM_THING_CLASSES,
-                   config.MODEL_WEIGHTS_FILENAME,
-                   "panoptic",
-                   '{}{}_{}_results_panoptic_{}'.format(constants.INFERENCE_RESULTS,
-                       config.MODEL, config.BACKBONE, timestamp),
-                   confidence=0.5)
+    if ".pth" in args.data_source:
+        args.data_folder = None
+        args.dataloader = args.data_source
+    else:
+        args.dataloader = None
+        args.data_folder = args.data_source
+    print(args)
+    if args.checkpoint == "":
+        args.checkpoint = None
+
+    if args.model_name not in MODELS:
+        raise ValueError("model_name must be one of: ", MODELS)
+    inference_loop = get_inference_loop(args.model_name)
+
+    # Total number of gpus availabe to us.
+    args.world_size = args.ngpus * args.nodes
+    # add the ip address to the environment variable so it can be easily avialbale
+    os.environ['MASTER_ADDR'] = args.ip_adress
+    print("ip_adress is", args.ip_adress)
+    os.environ['MASTER_PORT'] = '12355'
+    os.environ['WORLD_SIZE'] = str(args.world_size)
+    # nprocs: number of process which is equal to args.ngpu here
+    mp.spawn(inference_loop, nprocs=args.ngpus, args=(args,))
+

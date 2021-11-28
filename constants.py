@@ -4,7 +4,7 @@ COCO_ANN_LOC = "tmp/coco_ann/"
 MODELS_LOC = "tmp/models/"
 RES_LOC = "tmp/res/"
 
-INFERENCE_RESULTS = "results/"
+INFERENCE_RESULTS = "results"
 EFUSION_RESULTS = "results/EfusionPS/"
 
 TRAIN_DIR = "data_train/"
@@ -20,8 +20,8 @@ VKITTI_TRAIN_RES_FILENAME_EffPS = "vkitti_training_effps_results_parallel.txt"
 KITTI_DATA_LOADER_TRAIN_FILANME = "kitti_data_loader_train.pth"
 KITTI_DATA_LOADER_VAL_FILENAME = "kitti_data_loader_val.pth"
 
-VKITTI_DATA_LOADER_TRAIN_FILANME = "vkitti_data_loader_train_all_samples.pth"
-VKITTI_DATA_LOADER_VAL_FILENAME = "vkitti_data_loader_val_all_samples.pth"
+VKITTI_DATA_LOADER_TRAIN_FILANME = "vkitti_data_loader_train_625_samples_v2.pth"
+VKITTI_DATA_LOADER_VAL_FILENAME = "vkitti_data_loader_val_625_samples_v2.pth"
 
 DATA_LOADER_TRAIN_FILANME = "data_loader_train.pth"
 DATA_LOADER_VAL_FILENAME = "data_loader_val.pth"
@@ -43,4 +43,4 @@ ANN_VAL_DEFAULT_NAME_BG = "coco_ann_val_bg.json"
 ANN_TRAIN_DEFAULT_NAME_BG = "coco_ann_train_bg.json"
 #EVALUATION
 
-COCO_RES_JSON_FILENAME = "tmp/res/instances_val_obj_results.json"
+COCO_RES_JSON_FILENAME = "tmp/coco_ann/COCO_val_res.json"

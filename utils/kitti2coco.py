@@ -151,7 +151,7 @@ def map_semseg_img(img, basename, semantic_map_dest):
     for i in range(h):
         for j in range(w):
             rgb = np.asarray(img[i, j])
-            if (rgb != [0, 0, 0]).all():
+            if len(np.where((rgb != [0, 0, 0]))[0]) > 0:
                 pix_cat = list(filter(lambda rgb2class_tup: (
                     rgb2class_tup[1] == rgb).all(), rgb_2_class))[0]
                 pix_cat = pix_cat[3]
@@ -183,7 +183,8 @@ def kitti_2_coco(rgb_root, instance_seg_root, semantic_seg_root, semantic_map_fo
     data["categories"] = categories
     data["annotations"] = []
 
-    images = get_vkitti_files(rgb_root, "jpg")
+    images = sorted(get_vkitti_files(rgb_root, "jpg"))
+    
     image_list = list(map(get_img_obj, list(enumerate(images))))
 
     data["images"] = image_list
@@ -283,26 +284,27 @@ def kitti_2_coco(rgb_root, instance_seg_root, semantic_seg_root, semantic_map_fo
 
             # break
         # break
-    with open('kitti2coco_ann.json', 'w') as outfile:
+    with open("kitti_video_2_coco_ordered.json", 'w') as outfile:
         json.dump(data, outfile)
 
 
-data_folder_name = os.path.join("..", config_kitti.DATA)
+# data_folder_name = config_kitti.DATA
+data_folder_name = "data_vkitti_video"
 
 imgs_root = os.path.join(os.path.dirname(os.path.abspath(
-    __file__)),  data_folder_name, config_kitti.RGB_DATA)
+    __file__)), "..",  data_folder_name, config_kitti.RGB_DATA)
 
 instance_root = os.path.join(os.path.dirname(os.path.abspath(
-    __file__)), "{}/{}/".format(data_folder_name, config_kitti.INSTANCE_SEGMENTATION_DATA))
+    __file__)), "..", "{}/{}/".format(data_folder_name, config_kitti.INSTANCE_SEGMENTATION_DATA))
 
 
 semantic_root = os.path.join(os.path.dirname(os.path.abspath(
-    __file__)), "{}/{}/".format(data_folder_name, config_kitti.SEMANTIC_SEGMENTATION_DATA))
+    __file__)), "..", "{}/{}/".format(data_folder_name, config_kitti.SEMANTIC_SEGMENTATION_DATA))
 
 
-semantic_map_basename = "semseg_bin"
+semantic_map_basename = config_kitti.SEMANTIC_SEGMENTATION_DATA_CLASS
 semantic_map_dest = os.path.join(os.path.dirname(os.path.abspath(
-    __file__)), data_folder_name, semantic_map_basename)
+    __file__)), "..", data_folder_name, semantic_map_basename)
 
 
 Path(semantic_map_dest).mkdir(parents=True, exist_ok=True)

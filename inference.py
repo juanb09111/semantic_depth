@@ -14,24 +14,9 @@ from models import MODELS
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 
 def get_inference_loop(model_name):
-    # if model_name == "FuseNet":
-    #     return train_fusenet.inference
-    # if model_name == "FuseNet_v2":
-    #     return train_fusenet_v2.inference
-    # if model_name == "SemsegNet":
-    #     return train_sem_seg_net.inference
-    # if model_name == "Semseg_Depth":
-    #     return train_semseg_depth.inference
-    # if model_name == "Semseg_Depth_v2":
-    #     return train_semseg_depth_v2.inference
-    # if model_name == "Semseg_Depth_v3":
-    #     return train_semseg_depth_v3.inference
-    # if model_name == "Semseg_Depth_v4":
-    #     return train_semseg_depth_v4.inference
-    # if model_name == "SemsegNet_DepthInput":
-    #     return train_semseg_depth_input.inference
-    # if model_name == "Semseg_Depth_v2_loss_sum":
-    #     return train_semseg_depth_v2_loss_sum.inference
+    
+    if model_name == "Semseg_Depth_v4":
+        return inference_semseg_depth.inference
     if model_name == "PanopticSeg":
         return inference_panoptic.inference
     if model_name == "MaskRcnn":

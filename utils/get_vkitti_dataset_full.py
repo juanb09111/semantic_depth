@@ -417,13 +417,13 @@ class vkittiDataset(torch.utils.data.Dataset):
 
         # semantic_mask_path = os.path.join(os.path.dirname(
         #     os.path.abspath(__file__)), "..", config_kitti.DATA, semantic_mask_path)
-        semantic_mask_img = Image.open(semantic_img_filename)
+        semantic_mask = Image.open(semantic_img_filename)
 
         if self.transforms is not None:
-            semantic_mask = self.transforms(crop=self.crop)(semantic_mask_img)*255
+            semantic_mask = self.transforms(crop=self.crop)(semantic_mask)*255
             semantic_mask = torch.as_tensor(
                 semantic_mask, dtype=torch.uint8).squeeze_(0)
-
+        # print(semantic_mask.shape)
         # number of objects in the image
         num_objs = len(coco_annotation)
 
@@ -471,8 +471,9 @@ class vkittiDataset(torch.utils.data.Dataset):
             areas = torch.as_tensor(
                 (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0]))
             labels = torch.zeros((1), dtype=torch.int64)
-
-            masks = torch.zeros((1, semantic_mask_img.size[1], semantic_mask_img.size[0]), dtype=torch.uint8)
+            masks = torch.zeros(
+                (1, *config_kitti.CROP_OUTPUT_SIZE), dtype=torch.uint8)
+            # masks = torch.zeros((1, semantic_mask.shape[0], semantic_mask.shape[1]), dtype=torch.uint8)
             iscrowd = torch.zeros((0,), dtype=torch.int64)
 
         # Tensorise img_id

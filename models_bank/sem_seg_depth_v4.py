@@ -247,8 +247,8 @@ class Semseg_Depth(nn.Module):
 
         semantic_logits = self.refine_head(semantic_logits, fused_out)
 
-        out = fused_out.squeeze_(1)
-
+        # out = fused_out.squeeze_(1)
+        out = torch.squeeze(fused_out, 1)
         if self.training:
             
             device = sparse_depth_gt.get_device()

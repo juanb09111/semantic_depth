@@ -31,6 +31,8 @@ conda env create -f conda_environment.yml
 
 *Download virtual kitti dataset from https://europe.naverlabs.com/research/computer-vision/proxy-virtual-worlds-vkitti-2/ . Place the dataset under data/
 
+Take a look at the folder structure in data_example
+
 
 # Train with ignite 
 

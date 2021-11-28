@@ -1,6 +1,7 @@
 import torch
 import config_kitti
 import random
+import numpy as np
 
 
 def randRGB(seed=None):
@@ -40,3 +41,22 @@ def apply_panoptic_mask_gpu(image, mask):
                                       (1 - alpha) + alpha * color[c],
                                       image[c, :, :])
     return image
+
+
+def apply_panoptic_mask_gray(image, mask):
+
+    num_stuff_classes = config_kitti.NUM_STUFF_CLASSES
+    max_val = mask.max()
+    unique_val = torch.unique(mask)
+    colors = get_colors_palete(config_kitti.NUM_THING_CLASSES + config_kitti.NUM_STUFF_CLASSES)
+
+    b_image = torch.zeros_like(image).float()
+
+    for val in unique_val:
+        if val != 0:
+            color = map_to_rgb(val, max_val)
+            print(color)
+            for c in range(3):
+                b_image[c, :, :] = torch.where(mask == val,
+                                            color[c],
+                                            b_image[c, :, :])

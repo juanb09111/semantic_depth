@@ -195,7 +195,7 @@ def train(gpu, args):
         # params, lr=0.0002, momentum=0.9, weight_decay=0.00005)
 
     optimizer = torch.optim.SGD(
-        params, lr=0.0002, momentum=0.9, weight_decay=0.00005)
+        params, lr=0.005, momentum=0.9, weight_decay=0.0005)
     
     if args.checkpoint is not None:
 
@@ -269,7 +269,7 @@ def train(gpu, args):
         data_loader_2_coco_ann(data_loader_val_filename, annotation)
 
     if rank ==0:
-        writer = SummaryWriter(log_dir="runs/MaskRcnn_800_2000")
+        writer = SummaryWriter(log_dir="runs/MaskRcnn_1080_1920_lr=0.005_momentum=0.9_weight_decay=0.0005")
     else:
         writer=None
 

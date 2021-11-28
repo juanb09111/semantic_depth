@@ -41,8 +41,8 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
     def __init__(self, imgs_root, transforms, depth_root=None, n_samples=None, shuffle=False):
 
         self.imgs_root = imgs_root
-        self.source_img_list = get_vkitti_files(imgs_root, "jpg")
-
+        self.source_img_list = list(sorted(get_vkitti_files(imgs_root, "jpg")))
+        
 
         self.depth_root = depth_root
         
@@ -153,9 +153,9 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
     def __getitem__(self, index):
 
         img_filename = self.source_img_list[index]
-        
-        basename = img_filename.split(".")[-2].split("_")[-1]
-
+        # basename = img_filename.split(".")[-2].split("_")[-1]
+        basename = ".".join(img_filename.split("/")[-1].split(".")[:-1])
+        # print(basename)
         if self.depth_imgs is not None:
             scene = img_filename.split("/")[-6]
 
@@ -163,7 +163,7 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
             depth_filename = [s for s in self.depth_imgs if (
                 scene in s and basename in s)][0]
 
-            print(img_filename, depth_filename)
+            # print(img_filename, depth_filename)
 
             # img_filename = os.path.join(os.path.dirname(
             #     os.path.abspath(__file__)), "..", config_kitti.DATA, img_filename)
@@ -438,6 +438,11 @@ class vkittiDataset(torch.utils.data.Dataset):
         category_ids = []
         for i in range(num_objs):
 
+            mask = coco.annToMask(coco_annotation[i])
+            if self.crop:
+                mask = self.center_crop_mask(mask)
+            masks.append(mask)
+
             xmin = coco_annotation[i]['bbox'][0]
             ymin = coco_annotation[i]['bbox'][1]
             xmax = xmin + coco_annotation[i]['bbox'][2]
@@ -452,8 +457,6 @@ class vkittiDataset(torch.utils.data.Dataset):
 
             iscrowd.append(coco_annotation[i]['iscrowd'])
 
-            mask = coco.annToMask(coco_annotation[i])
-            masks.append(mask)
 
             category_ids.append(category_id)
 
@@ -468,8 +471,8 @@ class vkittiDataset(torch.utils.data.Dataset):
             areas = torch.as_tensor(
                 (boxes[:, 3] - boxes[:, 1]) * (boxes[:, 2] - boxes[:, 0]))
             labels = torch.zeros((1), dtype=torch.int64)
-            masks = torch.zeros(
-                (1, *config_kitti.CROP_OUTPUT_SIZE), dtype=torch.uint8)
+
+            masks = torch.zeros((1, semantic_mask_img.size[1], semantic_mask_img.size[0]), dtype=torch.uint8)
             iscrowd = torch.zeros((0,), dtype=torch.int64)
 
         # Tensorise img_id
@@ -492,10 +495,6 @@ class vkittiDataset(torch.utils.data.Dataset):
         my_annotation["num_instances"] = num_objs
         my_annotation['masks'] = masks
 
-        if self.transforms is not None:
-            semantic_mask = self.transforms(crop=True)(semantic_mask)*255
-            semantic_mask = torch.as_tensor(
-                semantic_mask, dtype=torch.uint8).squeeze_(0)
 
         my_annotation["semantic_mask"] = semantic_mask
 
@@ -509,90 +508,102 @@ class vkittiDataset(torch.utils.data.Dataset):
 
         basename = img_filename.split(".")[-2].split("_")[-1]
 
-        depth_filename = [s for s in self.depth_imgs if (
-            scene in s and basename in s)][0]
-        # print(img_filename, depth_filename)
-
         img_filename = os.path.join(os.path.dirname(
             os.path.abspath(__file__)), "..", config_kitti.DATA, img_filename)
 
-        depth_filename = os.path.join(os.path.dirname(
-            os.path.abspath(__file__)), "..", config_kitti.DATA, depth_filename)
-
         source_img = Image.open(img_filename)
-        depth_img = Image.open(depth_filename)
-        # img width and height
 
         if self.transforms is not None:
-            source_img = self.transforms(crop=True)(source_img)
-            depth_img = self.transforms(crop=True)(depth_img)
+            source_img = self.transforms(crop=self.crop)(source_img)
 
-        sparse_depth_gt_full = np.array(
-            depth_img, dtype=int).astype(np.float)/256
-        sparse_depth_gt_full = torch.from_numpy(sparse_depth_gt_full)
-        sparse_depth_gt_full = torch.where(sparse_depth_gt_full >= config_kitti.MAX_DEPTH, torch.tensor([
-                                           0], dtype=torch.float64), sparse_depth_gt_full)
-        # print("sparse_depth_gt 1", sparse_depth_gt.shape)
-        # print(torch.max(sparse_depth_gt), torch.min(sparse_depth_gt))
-        # plt.imshow(source_img.permute(1,2,0))
-        # plt.show()
+        if self.depth_imgs is not None:
+            depth_filename = [s for s in self.depth_imgs if (
+                scene in s and basename in s)][0]
+            #print(img_filename, depth_filename)
 
-        # plt.imshow(depth_img.permute(1,2,0))
-        # plt.show()
 
-        imPts, depth = self.sample_depth_img(depth_img)
-        imPts_gt, depth_gt = self.sample_depth_gt_img(depth_img)
+            depth_filename = os.path.join(os.path.dirname(
+                os.path.abspath(__file__)), "..", config_kitti.DATA, depth_filename)
 
-        virtual_lidar = torch.zeros(imPts.shape[0], 3)
-        virtual_lidar[:, 0:2] = imPts
-        virtual_lidar[:, 2] = depth
+            depth_img = Image.open(depth_filename)
 
-        mask = torch.zeros(source_img.shape[1:], dtype=torch.bool)
-        mask[imPts[:, 0], imPts[:, 1]] = True
-        # plt.imshow(mask)
-        # plt.show()
-        k_nn_indices = self.find_k_nearest(virtual_lidar)
+            if self.transforms is not None:
+            
+                depth_img = self.transforms(crop=self.crop)(depth_img)
+            
+            sparse_depth_gt_full = np.array(depth_img, dtype=int).astype(np.float)/256
+            sparse_depth_gt_full = torch.from_numpy(sparse_depth_gt_full)
+            sparse_depth_gt_full = torch.where(sparse_depth_gt_full >= config_kitti.MAX_DEPTH, torch.tensor([
+                                            0], dtype=torch.float64), sparse_depth_gt_full)
+            
+            # img width and height
 
-        sparse_depth = torch.zeros_like(
-            source_img[0, :, :].unsqueeze_(0), dtype=torch.float)
+            
 
-        # sparse_depth[0, imPts[:, 0], imPts[:, 1]] = torch.tensor(
-        #     depth, dtype=torch.float)
+            
+            # print("sparse_depth_gt 1", sparse_depth_gt.shape)
+            # print(torch.max(sparse_depth_gt), torch.min(sparse_depth_gt))
+            # plt.imshow(source_img.permute(1,2,0))
+            # plt.show()
 
-        sparse_depth[0, imPts[:, 0], imPts[:, 1]
-                     ] = depth.clone().detach().type(torch.float)
+            # plt.imshow(depth_img.permute(1,2,0))
+            # plt.show()
 
-        # -------Generate virtual ground truth
+            imPts, depth = self.sample_depth_img(depth_img)
+            imPts_gt, depth_gt = self.sample_depth_gt_img(depth_img)
 
-        sparse_depth_gt = torch.zeros_like(
-            source_img[0, :, :].unsqueeze_(0), dtype=torch.float)
+            virtual_lidar = torch.zeros(imPts.shape[0], 3)
+            virtual_lidar[:, 0:2] = imPts
+            virtual_lidar[:, 2] = depth
 
-        # sparse_depth_gt[0, imPts[:, 0], imPts[:, 1]] = torch.tensor(
-        #     depth, dtype=torch.float)
-        sparse_depth_gt[0, imPts[:, 0], imPts[:, 1]
+            mask = torch.zeros(source_img.shape[1:], dtype=torch.bool)
+            mask[imPts[:, 0], imPts[:, 1]] = True
+            # plt.imshow(mask)
+            # plt.show()
+            k_nn_indices = self.find_k_nearest(virtual_lidar)
+
+            sparse_depth = torch.zeros_like(
+                source_img[0, :, :].unsqueeze_(0), dtype=torch.float)
+
+            # sparse_depth[0, imPts[:, 0], imPts[:, 1]] = torch.tensor(
+            #     depth, dtype=torch.float)
+
+            sparse_depth[0, imPts[:, 0], imPts[:, 1]
                         ] = depth.clone().detach().type(torch.float)
-        # sparse_depth_gt[0, imPts_gt[:, 0], imPts_gt[:, 1]] = torch.tensor(
-        #     depth_gt, dtype=torch.float)
 
-        sparse_depth_gt[0, imPts_gt[:, 0], imPts_gt[:, 1]
-                        ] = depth_gt.clone().detach().type(torch.float)
+            # -------Generate virtual ground truth
 
-        # print("sparse_depth_gt 2", sparse_depth_gt.shape)
+            sparse_depth_gt = torch.zeros_like(
+                source_img[0, :, :].unsqueeze_(0), dtype=torch.float)
 
-        # plt.imshow(source_img.permute(1,2,0))
-        # plt.show()
+            # sparse_depth_gt[0, imPts[:, 0], imPts[:, 1]] = torch.tensor(
+            #     depth, dtype=torch.float)
+            sparse_depth_gt[0, imPts[:, 0], imPts[:, 1]
+                            ] = depth.clone().detach().type(torch.float)
+            # sparse_depth_gt[0, imPts_gt[:, 0], imPts_gt[:, 1]] = torch.tensor(
+            #     depth_gt, dtype=torch.float)
 
-        # plt.imshow(mask)
-        # plt.show()
+            sparse_depth_gt[0, imPts_gt[:, 0], imPts_gt[:, 1]
+                            ] = depth_gt.clone().detach().type(torch.float)
 
-        # plt.imshow(ann["semantic_mask"].squeeze_(0))
-        # plt.show()
+            # print("sparse_depth_gt 2", sparse_depth_gt.shape)
 
-        # for m in ann["masks"]:
-        #     plt.imshow(m)
-        #     plt.show()
-        # print(source_img, virtual_lidar, mask, sparse_depth, k_nn_indices, sparse_depth_gt)
-        return source_img, ann, virtual_lidar, mask, sparse_depth, k_nn_indices, sparse_depth_gt, sparse_depth_gt_full, basename
+            # plt.imshow(source_img.permute(1,2,0))
+            # plt.show()
+
+            # plt.imshow(mask)
+            # plt.show()
+
+            # plt.imshow(ann["semantic_mask"].squeeze_(0))
+            # plt.show()
+
+            # for m in ann["masks"]:
+            #     plt.imshow(m)
+            #     plt.show()
+            # print(source_img, virtual_lidar, mask, sparse_depth, k_nn_indices, sparse_depth_gt)
+            return source_img, ann, virtual_lidar, mask, sparse_depth, k_nn_indices, sparse_depth_gt, sparse_depth_gt_full, basename
+        else:
+            return source_img, ann, None, None, None, None, None, None, basename
 
     def __len__(self):
         return len(self.ids)

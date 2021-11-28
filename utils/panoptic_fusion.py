@@ -249,11 +249,12 @@ def fuse_logits(MLA, MLB):
 
 def panoptic_fusion(preds, all_categories, stuff_categories, thing_categories, device, threshold_by_confidence=True, sort_confidence=True):
 
-    print("DEVICE!!!!!!!!!!!!!!!!!!!!", device)
+    
 
     inter_pred_batch = []
     sem_pred_batch = []
     summary_batch = []
+    ids_label_map_batch = []
     batch_size = len(preds)
 
     # Get list of cat in the form of (idx, supercategory)
@@ -288,6 +289,10 @@ def panoptic_fusion(preds, all_categories, stuff_categories, thing_categories, d
 
     for i in range(batch_size):
 
+        ids_label_map = []
+        for cat_idx in stuff_cat_idx:
+            ids_label_map.append((cat_idx, cat_idx, {"isthing": False}))
+            
         labels = preds[i]["labels"]
         
         summary_obj = summary(labels, thing_categories)
@@ -318,6 +323,8 @@ def panoptic_fusion(preds, all_categories, stuff_categories, thing_categories, d
                 for idx, obj_id in enumerate(obj_ids):
 
                     inter_pred = torch.where(inter_pred == stuff_layers_len + idx, obj_id, inter_pred)
+                    
+                    ids_label_map.append((obj_id, labels[idx], {"isthing": True}))
 
             # Semantic predictions
             sem_pred = torch.argmax(sem_logits, dim=0)
@@ -326,22 +333,25 @@ def panoptic_fusion(preds, all_categories, stuff_categories, thing_categories, d
             inter_pred_batch.append(inter_pred)
 
             sem_pred_batch.append(sem_pred)
+
+            ids_label_map_batch.append(ids_label_map)
         else:
 
             sem_pred = torch.argmax(stuff_sem_logits, dim=0)
 
             inter_pred_batch.append(None)
+            ids_label_map_batch.append(None)
 
             sem_pred_batch.append(sem_pred)
 
-    return inter_pred_batch, sem_pred_batch, summary_batch
+    return inter_pred_batch, sem_pred_batch, summary_batch, ids_label_map_batch
 
 
 def map_stuff(x, classes_arr, device):
 
     res = torch.zeros_like(x)
     default_value = torch.tensor(0).to(device)
-
+    # print("classes_arr", classes_arr)
     for c in classes_arr:
         y = torch.where(x == c, x, default_value)
 
@@ -351,15 +361,15 @@ def map_stuff(x, classes_arr, device):
 
 
 def map_things(x, classes_arr, device):
-    res = torch.zeros_like(x)
+    # res = torch.zeros_like(x)
     default_value = torch.tensor(0).to(device)
 
     for c in classes_arr:
         y = torch.where(x != c, x, default_value)
+        x = y
+        # res = res + y
 
-        res = res + y
-
-    return res
+    return y
 
 
 def panoptic_canvas(inter_pred_batch, sem_pred_batch, all_categories, stuff_categories, thing_categories, device):
@@ -414,16 +424,16 @@ def panoptic_canvas(inter_pred_batch, sem_pred_batch, all_categories, stuff_cate
     return panoptic_canvas_batch
 
 
-def get_panoptic_results(images, preds, all_categories, stuff_categories, thing_categories, folder, filenames):
+def get_panoptic_results(images, preds, all_categories, stuff_categories, thing_categories, folder, filenames, device):
 
 
     batch_size = len(preds)
 
-    inter_pred_batch, sem_pred_batch, summary_batch = panoptic_fusion(
-        preds, all_categories, stuff_categories, thing_categories)
+    inter_pred_batch, sem_pred_batch, summary_batch, _ = panoptic_fusion(
+        preds, all_categories, stuff_categories, thing_categories, device)
 
     panoptic_canvas_batch = panoptic_canvas(
-        inter_pred_batch, sem_pred_batch, all_categories, stuff_categories, thing_categories)
+        inter_pred_batch, sem_pred_batch, all_categories, stuff_categories, thing_categories, device)
 
 
     # TODO: panoptic_canvas_batch could be None for one of the values in the batch

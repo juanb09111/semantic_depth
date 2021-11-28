@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from pycocotools import mask as coco_mask
 import json
 from datetime import datetime
+from pathlib import Path
 
 import torchvision.transforms as transforms
 # TODO:
@@ -151,7 +152,27 @@ def get_img_obj(arg):
     return obj
 
 
+def map_semseg_img(img, basename, semantic_map_dest):
+    h, w = img.shape[:2]
+    new_img_tensor = np.zeros([h, w])
+    for i in range(h):
+        for j in range(w):
+            rgb = np.asarray(img[i, j])
+            if len(np.where((rgb != [0, 0, 0]))[0]) > 0:
+                pix_cat = list(filter(lambda rgb2class_tup: (
+                    rgb2class_tup[1] == rgb).all(), rgb_2_class))[0]
+                pix_cat = pix_cat[3]
+                new_img_tensor[i, j] = pix_cat
 
+    I8 = (((new_img_tensor))).astype(np.uint8)
+    im = Image.fromarray(I8)
+
+    folder_path = os.path.join(semantic_map_dest)
+    Path(folder_path).mkdir(parents=True, exist_ok=True)
+    filename = os.path.join(folder_path, "classgt_" + basename + ".png")
+    im.save(filename)
+
+    return filename
 
 def kitti_2_coco_crop(rgb_root, instance_seg_root, semantic_seg_root, ann_file):
 

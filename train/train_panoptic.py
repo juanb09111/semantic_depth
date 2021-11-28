@@ -191,9 +191,11 @@ def train(gpu, args):
     # optimizer = torch.optim.SGD(
     #     params, lr=0.005, momentum=0.9, weight_decay=0.00005)
 
-    optimizer = torch.optim.SGD(
-        params, lr=0.0002, momentum=0.9, weight_decay=0.00005)
+    # optimizer = torch.optim.SGD(
+        # params, lr=0.0002, momentum=0.9, weight_decay=0.00005)
 
+    optimizer = torch.optim.SGD(
+        params, lr=0.005, momentum=0.9, weight_decay=0.0005)
     
     if args.checkpoint is not None:
 
@@ -212,8 +214,12 @@ def train(gpu, args):
     data_loader_train = None
     data_loader_val = None
 
+    
+    #TODO: map location utils.maplocation
+
     annotation = os.path.join(os.path.dirname(os.path.abspath(
             __file__)), "..", config_kitti.COCO_ANN)
+    
     
     all_categories, _, thing_categories = get_stuff_thing_classes(annotation)
 
@@ -230,16 +236,15 @@ def train(gpu, args):
         imgs_root = os.path.join(os.path.dirname(os.path.abspath(
             __file__)), "..", config_kitti.DATA, "vkitti_2.0.3_rgb/")
 
-        depth_root = os.path.join(os.path.dirname(os.path.abspath(
-            __file__)), "..", config_kitti.DATA, "vkitti_2.0.3_depth/")
-
+        semantic_root = os.path.join(os.path.dirname(os.path.abspath(
+            __file__)), "..", config_kitti.DATA, "vkitti_2.0.3_classSegmentation/") 
         
-
  
         data_loader_train, data_loader_val = get_dataloaders(
             args.batch_size,
             imgs_root,
-            depth_root,
+            semantic_root,
+            None,
             annotation,
             num_replicas=args.world_size,
             rank=rank,
@@ -247,7 +252,8 @@ def train(gpu, args):
             val_size=config_kitti.VAL_SIZE,
             n_samples=config_kitti.MAX_TRAINING_SAMPLES,
             sampler=False,
-            shuffle=False)
+            shuffle=False,
+            is_test_set=False)
 
         # save data loaders
         data_loader_train_filename = os.path.join(os.path.dirname(
@@ -263,7 +269,7 @@ def train(gpu, args):
         data_loader_2_coco_ann(data_loader_val_filename, annotation)
 
     if rank ==0:
-        writer = SummaryWriter(log_dir="runs/Panoptic")
+        writer = SummaryWriter(log_dir="runs/Panoptic_jd_1080_1920_lr=0.005_momentum=0.9_weight_decay=0.0005_all_samples")
     else:
         writer=None
 
@@ -277,7 +283,7 @@ def train(gpu, args):
         ignite_engine.add_event_handler(Events.STARTED, __setup_state_wrapper(epoch, iteration))
 
     ignite_engine.add_event_handler(
-        Events.ITERATION_COMPLETED(every=100), __log_training_loss_wrapper(optimizer, train_res_file))
+        Events.ITERATION_COMPLETED(every=20), __log_training_loss_wrapper(optimizer, train_res_file))
     ignite_engine.add_event_handler(
         Events.EPOCH_COMPLETED, __log_validation_results_wrapper(model,
         optimizer, 

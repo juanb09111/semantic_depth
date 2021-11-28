@@ -4,7 +4,7 @@ COCO_ANN_LOC = "tmp/coco_ann/"
 MODELS_LOC = "tmp/models/"
 RES_LOC = "tmp/res/"
 
-INFERENCE_RESULTS = "results/"
+INFERENCE_RESULTS = "results"
 EFUSION_RESULTS = "results/EfusionPS/"
 
 TRAIN_DIR = "data_train/"

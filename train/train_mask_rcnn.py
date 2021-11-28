@@ -14,7 +14,7 @@ from utils.convert_tensor_to_RGB import convert_tensor_to_RGB
 from utils.data_loader_2_coco_ann import data_loader_2_coco_ann 
 from utils.get_stuff_thing_classes import get_stuff_thing_classes
 
-from eval_scripts.eval_panoptic import eval_panoptic
+from eval_scripts.eval_maskrcnn import eval_maskrcnn
 
 from torch.utils.tensorboard import SummaryWriter
 
@@ -100,7 +100,7 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, all_cate
         max_epochs = trainer_engine.state.max_epochs
         i = trainer_engine.state.iteration
         weights_path = "{}{}_loss_{}.pth".format(
-            constants.MODELS_LOC, "Panoptic_Seg", batch_loss)
+            constants.MODELS_LOC, "MaskRcnn", batch_loss)
         
         if rank == 0:
             dict_model = {
@@ -119,17 +119,17 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, all_cate
         print(text)
 
         if rank ==0:
-            miou, rgb_sample, mask_gt, mask_output = eval_panoptic(model, data_loader_val, weights_path, all_categories, thing_categories, device)
+            eval_maskrcnn(model, data_loader_val, weights_path, all_categories, thing_categories, device)
 
-            mask_gt = convert_tensor_to_RGB(mask_gt.unsqueeze(0), device).squeeze(0)/255
-            mask_output = torch.argmax(mask_output, dim=0)
-            mask_output = convert_tensor_to_RGB(mask_output.unsqueeze(0), device).squeeze(0)/255
+            # mask_gt = convert_tensor_to_RGB(mask_gt.unsqueeze(0), device).squeeze(0)/255
+            # mask_output = torch.argmax(mask_output, dim=0)
+            # mask_output = convert_tensor_to_RGB(mask_output.unsqueeze(0), device).squeeze(0)/255
 
             writer.add_scalar("Loss/train/epoch", batch_loss, state_epoch)
-            writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
-            writer.add_image("eval/src_img", rgb_sample, state_epoch, dataformats="CHW")
-            writer.add_image("eval/gt", mask_gt, state_epoch, dataformats="CHW")
-            writer.add_image("eval/out", mask_output, state_epoch, dataformats="CHW")
+            # writer.add_scalar("mIoU/train/epoch", miou, state_epoch)
+            # writer.add_image("eval/src_img", rgb_sample, state_epoch, dataformats="CHW")
+            # writer.add_image("eval/gt", mask_gt, state_epoch, dataformats="CHW")
+            # writer.add_image("eval/out", mask_output, state_epoch, dataformats="CHW")
 
         
         scheduler.step()
@@ -163,13 +163,13 @@ def train(gpu, args):
 
     # Write results in text file
     
-    res_filename = "results_{}".format("PanopticSeg")
+    res_filename = "results_{}".format("MaskRcnn")
     train_res_file = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), "..", constants.RES_LOC, res_filename)
 
     with open(train_res_file, "w+") as training_results:
         training_results.write(
-            "----- TRAINING RESULTS - Vkitti {} ----".format("PanopticSeg")+"\n")
+            "----- TRAINING RESULTS - Vkitti {} ----".format("MaskRcnn")+"\n")
     # Set device
     temp_variables.DEVICE = args.gpu
     
@@ -178,7 +178,7 @@ def train(gpu, args):
     torch.cuda.empty_cache()
 
     # Get model according to config
-    model = models.get_model_by_name("PanopticSeg").cuda(args.gpu)
+    model = models.get_model_by_name("MaskRcnn").cuda(args.gpu)
 
         
 
@@ -269,7 +269,7 @@ def train(gpu, args):
         data_loader_2_coco_ann(data_loader_val_filename, annotation)
 
     if rank ==0:
-        writer = SummaryWriter(log_dir="runs/Panoptic_jd_1080_1920_lr=0.005_momentum=0.9_weight_decay=0.0005_all_samples")
+        writer = SummaryWriter(log_dir="runs/MaskRcnn_1080_1920_lr=0.005_momentum=0.9_weight_decay=0.0005")
     else:
         writer=None
 

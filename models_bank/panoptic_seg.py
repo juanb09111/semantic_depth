@@ -6,7 +6,7 @@ from torch import nn
 import torch.nn.functional as F
 import torchvision
 
-
+# from backbones_bank.maskrcnn_backbone import MaskRCNN_backbone
 from models_bank.maskrcnn.detection import maskrcnn_resnet50_fpn
 from models_bank.maskrcnn.detection.backbone_utils import resnet_fpn_backbone
 
@@ -27,12 +27,14 @@ class PanopticSeg(nn.Module):
         super(PanopticSeg, self).__init__()
 
 
-        min_size , max_size = input_image_size
+        min_size , max_size = (config_kitti.MIN_SIZE, config_kitti.MAX_SIZE)
         
-        self.backbone = resnet_fpn_backbone(backbone_name, pre_trained_backboned)
+        backbone = resnet_fpn_backbone(backbone_name, pre_trained_backboned)
+        # backbone = MaskRCNN_backbone(backbone_out_channels)
+        
         # backbone.body.conv1 = nn.Conv2d(48, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
         self.mask_rcnn = maskrcnn_resnet50_fpn(
-            pretrained=False, backbone=self.backbone, num_classes=num_ins_classes + 1, min_size=min_size, max_size=max_size)
+            pretrained=False, backbone=backbone, num_classes=num_ins_classes + 1, min_size=min_size, max_size=max_size)
         
         self.semantic_head = sem_seg_head(
             backbone_out_channels,

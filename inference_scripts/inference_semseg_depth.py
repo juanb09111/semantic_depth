@@ -30,7 +30,6 @@ def save_fig(im, loc, file_name, shape):
     height, width = shape
     # im = im.cpu().permute(1, 2, 0).numpy()
 
-
     dppi = 96
     fig, ax = plt.subplots(1, 1, figsize=(
         width/dppi, height/dppi), dpi=dppi)
@@ -39,7 +38,6 @@ def save_fig(im, loc, file_name, shape):
     plt.margins(0, 0)
     plt.gca().xaxis.set_major_locator(plt.NullLocator())
     plt.gca().yaxis.set_major_locator(plt.NullLocator())
-    
 
     ax.imshow(im,  interpolation='nearest', aspect='auto')
     plt.axis('off')
@@ -55,14 +53,13 @@ def inference_sem_seg_depth(model, data_loader_val, weights_file):
     )
 
     dist.barrier()
-    
+
     map_location = {'cuda:%d' % 0: 'cuda:%d' % 0}
 
     checkpoint = torch.load(args.checkpoint, map_location=map_location)
-    
+
     model.load_state_dict(checkpoint['state_dict'])
 
-    
     # move model to the right device
 
     for images, anns, lidar_fov, masks, sparse_depth, k_nn_indices, sparse_depth_gt, sparse_depth_gt_full, basename in data_loader_val:
@@ -108,23 +105,23 @@ def inference_sem_seg_depth(model, data_loader_val, weights_file):
             for idx, out in enumerate(outputs):
                 out_depth = outputs[idx]["depth"]
                 shape = out_depth.shape
-            
+
                 out_depth_numpy = out_depth.cpu().numpy()/255
                 # --------------------------------------
-                
+
                 # Calculate miou
                 semantic_mask = semantic_masks[idx]
                 semantic_logits = out["semantic_logits"]
 
-
                 mask_output = torch.argmax(semantic_logits, dim=0)
                 mask_output = convert_tensor_to_RGB(
-                mask_output.unsqueeze(0),device).squeeze(0)/255
-                mask_output= mask_output.cpu().permute(1, 2, 0).numpy()
+                    mask_output.unsqueeze(0), device).squeeze(0)/255
+                mask_output = mask_output.cpu().permute(1, 2, 0).numpy()
 
                 rgb = imgs[idx].cpu().permute(1, 2, 0).numpy()
 
-                loc = "{}/{}".format(constants.INFERENCE_RESULTS, "Semseg_Depth_v4")
+                loc = "{}/{}".format(constants.INFERENCE_RESULTS,
+                                     "Semseg_Depth_v4")
                 # Create folde if it doesn't exist
                 Path(loc).mkdir(parents=True, exist_ok=True)
 
@@ -139,40 +136,10 @@ def inference_sem_seg_depth(model, data_loader_val, weights_file):
     # return np.mean(rmse_arr), np.mean(iou_arr), imgs[0], anns[0]["semantic_mask"], outputs[0]["semantic_logits"], sparse_depth_gt[0], sparse_depth_gt_full[0].squeeze_(0), outputs[0]["depth"]
 
 
-if __name__ == "__main__":
+def inference(gpu, args):
+    args.gpu = gpu
+    rank = args.local_ranks * args.ngpus + gpu
 
-    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
-    print("Device: ", device)
-
-    parser = ArgumentParser()
-    parser.add_argument('--nodes', default=1, type=int)
-    parser.add_argument('--local_ranks', default=0, type=int,
-                        help="Node's order number in [0, num_of_nodes-1]")
-    parser.add_argument('--ip_adress', type=str, required=True,
-                        help='ip address of the host node')
-
-    parser.add_argument('--ngpus', default=4, type=int,
-                        help='number of gpus per node')
-
-    parser.add_argument('--model_name', type=str, required=True, help="Name of the model to train. Look up in models.py")
-    parser.add_argument('--batch_size', type=int, required=True, help="Batch size")
-    parser.add_argument('--checkpoint', type=str, default=None, help="Pretrained weights")
-
-    args = parser.parse_args()
-
-    # Total number of gpus availabe to us.
-    args.world_size = args.ngpus * args.nodes
-    # add the ip address to the environment variable so it can be easily avialbale
-    os.environ['MASTER_ADDR'] = args.ip_adress
-    print("ip_adress is", args.ip_adress)
-    os.environ['MASTER_PORT'] = '12355'
-    os.environ['WORLD_SIZE'] = str(args.world_size)
-    # nprocs: number of process which is equal to args.ngpu here
-    
-    
-    if args.checkpoint == "":
-        args.checkpoint = None
-    
     dist.init_process_group(
         backend='nccl',
         init_method='env://',
@@ -180,33 +147,50 @@ if __name__ == "__main__":
         rank=0
     )
     torch.manual_seed(0)
-    
-    # Get model according to config
-    print(models.get_model_by_name, args.model_name)
+
+    print("DEVICE", args.gpu)
     model = models.get_model_by_name("Semseg_Depth_v4")
-    
-    model.to(device)
+
+    model.to(args.gpu)
 
     imgs_root = os.path.join(os.path.dirname(os.path.abspath(
-            __file__)), config_kitti.DATA, "vkitti_2.0.3_rgb/")
+        __file__)), "..", args.data_folder, "vkitti_2.0.3_rgb/")
 
     depth_root = os.path.join(os.path.dirname(os.path.abspath(
-        __file__)), config_kitti.DATA, "vkitti_2.0.3_depth/")
+        __file__)), args.data_folder, "vkitti_2.0.3_depth/")
+
+    semantic_root = os.path.join(os.path.dirname(os.path.abspath(
+        __file__)), "..", args.data_folder, "semseg_bin/")
 
     annotation = os.path.join(os.path.dirname(os.path.abspath(
-        __file__)), config_kitti.COCO_ANN)
+        __file__)), "..", args.categories_json)
 
+    args.annotation = annotation
 
-    _, data_loader_val = get_dataloaders(
-        args.batch_size,
-        imgs_root,
-        depth_root,
-        annotation,
-        num_replicas=1,
-        rank=0,
-        split=True,
-        val_size=config_kitti.VAL_SIZE,
-        n_samples=config_kitti.MAX_TRAINING_SAMPLES)
+    if args.dataloader is None:
 
-    inference_sem_seg_depth(model, data_loader_val, args.checkpoint)
+        if args.data_folder is None:
+            raise ValueError(
+                "Either datalodar or data_folder has to be provided")
+
+        data_loader, _ = get_dataloaders(
+            args.batch_size,
+            imgs_root,
+            semantic_root,
+            depth_root,
+            annotation,
+            num_replicas=args.world_size,
+            rank=rank,
+            split=False,
+            val_size=None,
+            n_samples=config_kitti.MAX_TRAINING_SAMPLES,
+            sampler=False,
+            shuffle=False,
+            is_test_set=True)
+
+    else:
+        data_loader = args.dataloader
+
+    inference_sem_seg_depth(model, data_loader, args.checkpoint)
+
 

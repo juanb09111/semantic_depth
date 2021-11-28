@@ -237,7 +237,7 @@ def train(gpu, args):
             __file__)), "..", config_kitti.DATA, "vkitti_2.0.3_rgb/")
 
         semantic_root = os.path.join(os.path.dirname(os.path.abspath(
-            __file__)), "..", config_kitti.DATA, "vkitti_2.0.3_classSegmentation/") 
+            __file__)), "..", config_kitti.DATA, "semseg_bin/") 
         
  
         data_loader_train, data_loader_val = get_dataloaders(

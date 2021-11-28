@@ -268,6 +268,9 @@ def train(gpu, args):
     data_loader_train = None
     data_loader_val = None
 
+    annotation = os.path.join(os.path.dirname(os.path.abspath(
+            __file__)), "..", config_kitti.COCO_ANN)
+
     if config_kitti.USE_PREEXISTING_DATA_LOADERS:
         data_loader_train = torch.load(config_kitti.DATA_LOADER_TRAIN_FILANME)
         data_loader_val = torch.load(config_kitti.DATA_LOADER_VAL_FILENAME)
@@ -282,23 +285,28 @@ def train(gpu, args):
         imgs_root = os.path.join(os.path.dirname(os.path.abspath(
             __file__)), "..", config_kitti.DATA, "vkitti_2.0.3_rgb/")
 
+        semantic_root = os.path.join(os.path.dirname(os.path.abspath(
+            __file__)), "..", config_kitti.DATA, "semseg_bin/") 
+        
+
         depth_root = os.path.join(os.path.dirname(os.path.abspath(
             __file__)), "..", config_kitti.DATA, "vkitti_2.0.3_depth/")
 
-        annotation = os.path.join(os.path.dirname(os.path.abspath(
-            __file__)), "..", config_kitti.COCO_ANN)
-
- 
         data_loader_train, data_loader_val = get_dataloaders(
             args.batch_size,
             imgs_root,
+            semantic_root,
             depth_root,
             annotation,
             num_replicas=args.world_size,
             rank=rank,
             split=True,
             val_size=config_kitti.VAL_SIZE,
-            n_samples=config_kitti.MAX_TRAINING_SAMPLES)
+            n_samples=config_kitti.MAX_TRAINING_SAMPLES,
+            sampler=False,
+            shuffle=False,
+            is_test_set=False)
+
 
         # save data loaders
         data_loader_train_filename = os.path.join(os.path.dirname(

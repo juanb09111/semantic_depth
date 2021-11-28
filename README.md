@@ -37,7 +37,7 @@ Take a look at the folder structure in data_example
 # Train with ignite 
 
 
-After having organized your data and set up your config file, simply run:
+After having organized your data and set up your config file "config_kitti.py", simply run:
 
 
 ```

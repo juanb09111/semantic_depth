@@ -2,6 +2,10 @@
 SemSegDepth: A Combined Model for Semantic Segmentation and
 Depth Completion
 
+
+![semseg_depth](https://user-images.githubusercontent.com/61198473/144030382-68d0eea9-1e5b-4744-a167-d832825ad4e6.png)
+
+
 # Requirements
 
 * Linux (tested on Ubuntu 18.04)

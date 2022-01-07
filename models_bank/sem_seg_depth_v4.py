@@ -125,7 +125,6 @@ class Semseg_Depth(nn.Module):
 
         # Depth head---------------------------------------------------------------
 
-       
         self.sparse_conv = nn.Sequential(
             nn.Conv2d(in_channels=1, out_channels=16,
                       kernel_size=3, stride=2, padding=1),
@@ -184,10 +183,9 @@ class Semseg_Depth(nn.Module):
             nn.ReLU()
         )
 
-        # Semantic Segmentation 
+        # Semantic Segmentation
         self.backbone = resnet_fpn_backbone('resnet50', False)
         # backbone.body.conv1 = nn.Conv2d(48, 64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
-
 
         self.semantic_head = sem_seg_head(
             backbone_out_channels,
@@ -195,10 +193,17 @@ class Semseg_Depth(nn.Module):
 
         # output
 
-        self.refine_head = refine_head(num_ins_classes + num_sem_classes + 1, original_image_size)
+        self.refine_head = refine_head(
+            num_ins_classes + num_sem_classes + 1, original_image_size)
 
-
-    def forward(self, img, sparse_depth, mask, coors, k_nn_indices, sparse_depth_gt=None, semantic_masks=None):
+    def forward(self,
+                img,
+                sparse_depth,
+                mask,
+                coors,
+                k_nn_indices,
+                sparse_depth_gt=None,
+                semantic_masks=None):
         """
         inputs:
         img: input rgb (B x 3 x H x W)
@@ -210,21 +215,18 @@ class Semseg_Depth(nn.Module):
         output:
         depth: completed depth
         """
-        
+
         # Backbone
 
         backbone_feat = self.backbone(img)
 
         P4, P8, P16, P32 = backbone_feat['0'], backbone_feat['1'], backbone_feat['2'], backbone_feat['3']
-        
-        
-        #Semantic Segmentation
-        semantic_logits = self.semantic_head(P4, P8, P16, P32)
 
+        # Semantic Segmentation
+        semantic_logits = self.semantic_head(P4, P8, P16, P32)
 
         # Depth completion ------------------------
         _, H, W = mask.shape
-
 
         # sparse depth branch
         y_sparse = self.sparse_conv(sparse_depth)  # B x 16 x H/2 x W/2
@@ -241,33 +243,29 @@ class Semseg_Depth(nn.Module):
             (y_rgbd_cat_y_sparse, mask, coors, k_nn_indices))
 
         fused_out = self.output_layer(fused)
-
-
-        #output 
+        # output
 
         semantic_logits = self.refine_head(semantic_logits, fused_out)
 
         out = fused_out.squeeze_(1)
 
         if self.training:
-            
+
             device = sparse_depth_gt.get_device()
-            # Depth completion 
+            # Depth completion
             mask_gt = torch.where(sparse_depth_gt > 0, torch.tensor((1), device=device,
                                                                     dtype=torch.float64), torch.tensor((0), device=device, dtype=torch.float64))
             mask_gt = mask_gt.squeeze_(1)
             mask_gt.requires_grad_(True)
-            sparse_depth_gt = sparse_depth_gt.squeeze_(1)  # remove C dimension there's only one
+            sparse_depth_gt = sparse_depth_gt.squeeze_(
+                1)  # remove C dimension there's only one
 
             depth_loss = F.mse_loss(out*mask_gt, sparse_depth_gt*mask_gt)
 
-
             semantic_loss = F.cross_entropy(
                 semantic_logits, semantic_masks.long())
-
-
-            losses = {"depth_loss": depth_loss, "semantic_loss": semantic_loss, "loss_sum": depth_loss + semantic_loss}
-
+            losses = {"depth_loss": depth_loss, "semantic_loss": semantic_loss,
+                      "loss_sum": depth_loss + semantic_loss}
 
             return losses
 

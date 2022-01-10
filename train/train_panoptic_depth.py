@@ -66,9 +66,22 @@ def __update_model_wrapper(model, optimizer, device, rank, writer):
                           sparse_depth_gt=sparse_depth_gt,
                           anns=annotations)
 
-        losses = sum(loss for loss in loss_dict.values())
+        # losses = sum(loss for loss in loss_dict.values())
 
         i = trainer_engine.state.iteration
+
+        if i <= 50:
+            losses = sum(loss[1] for loss in loss_dict.iteritems() if loss[0] is "depth_loss")
+
+        if i <= 100 and i > 50:
+            losses = sum(loss[1] for loss in loss_dict.iteritems() if loss[0] is "semantic_loss")
+
+        if i <= 150 and i > 100:
+            losses = sum(loss[1] for loss in loss_dict.iteritems() if loss[0] not in ["semantic_loss", "depth_loss"] )
+
+        if i <= 200 and i > 150:
+            losses = sum(loss for loss in loss_dict.values())
+
         if rank == 0:
             writer.add_scalar("Loss/train/iteration", losses, i)
 
@@ -224,8 +237,13 @@ def train(gpu, args):
     # optimizer = torch.optim.SGD(
     #     params, lr=0.005, momentum=0.9, weight_decay=0.00005)
 
+    # fusenet optimizer
     optimizer = torch.optim.SGD(
-        params, lr=0.0001, momentum=0.9, weight_decay=0.00005)
+        params, lr=0.0016, momentum=0.9, weight_decay=0.00005)
+
+    # Panoptic depth optimizer
+    # optimizer = torch.optim.SGD(
+    #     params, lr=0.0001, momentum=0.9, weight_decay=0.00005)
 
     if args.checkpoint is not None:
 
@@ -303,7 +321,7 @@ def train(gpu, args):
         writer = None
 
     # ---------------TRAIN--------------------------------------
-    scheduler = MultiStepLR(optimizer, milestones=[65, 80, 85, 90], gamma=0.1)
+    scheduler = MultiStepLR(optimizer, milestones=[150, 185], gamma=0.1)
     ignite_engine = Engine(__update_model_wrapper(
         model, optimizer, args.gpu, rank, writer))
 

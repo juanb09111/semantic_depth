@@ -36,27 +36,23 @@ def get_vkitti_files(dirName, ext):
     return allFiles
 
 
-
 class vkitti_test_Dataset(torch.utils.data.Dataset):
     def __init__(self, imgs_root, transforms, depth_root=None, n_samples=None, shuffle=False):
 
         self.imgs_root = imgs_root
         self.source_img_list = list(sorted(get_vkitti_files(imgs_root, "jpg")))
-        
 
         self.depth_root = depth_root
-        
+
         if config_kitti.CROP_OUTPUT_SIZE is None:
             self.crop = False
         else:
             self.crop = True
 
-        if depth_root is not None :
+        if depth_root is not None:
             depth_files = get_vkitti_files(depth_root, "png")
         else:
             depth_files = None
-
-        
 
         self.depth_imgs = depth_files
 
@@ -148,8 +144,6 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
 
         return imPts[inds, :][:config_kitti.N_NUMBER], depth[inds][:config_kitti.N_NUMBER]
 
-   
-
     def __getitem__(self, index):
 
         img_filename = self.source_img_list[index]
@@ -158,7 +152,6 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
         # print(basename)
         if self.depth_imgs is not None:
             scene = img_filename.split("/")[-6]
-
 
             depth_filename = [s for s in self.depth_imgs if (
                 scene in s and basename in s)][0]
@@ -179,9 +172,7 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
                 source_img = self.transforms(crop=self.crop)(source_img)
                 depth_img = self.transforms(crop=self.crop)(depth_img)
 
-
             imPts, depth = self.sample_depth_img(depth_img)
-            
 
             virtual_lidar = torch.zeros(imPts.shape[0], 3)
             virtual_lidar[:, 0:2] = imPts
@@ -200,8 +191,8 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
             #     depth, dtype=torch.float)
 
             sparse_depth[0, imPts[:, 0], imPts[:, 1]
-                        ] = depth.clone().detach().type(torch.float)
-            
+                         ] = depth.clone().detach().type(torch.float)
+
             return source_img, basename, virtual_lidar, mask, sparse_depth, k_nn_indices
 
         else:
@@ -211,11 +202,12 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
 
             if self.transforms is not None:
                 source_img = self.transforms(crop=self.crop)(source_img)
-            
+
             return source_img, basename
 
     def __len__(self):
         return len(self.source_img_list)
+
 
 class vkittiDataset(torch.utils.data.Dataset):
     def __init__(self, imgs_root, semantic_root, annotation, transforms, depth_root=None, n_samples=None, shuffle=True):
@@ -224,7 +216,7 @@ class vkittiDataset(torch.utils.data.Dataset):
             self.crop = False
         else:
             self.crop = True
-            
+
         self.imgs_root = imgs_root
 
         self.semantic_root = semantic_root
@@ -238,7 +230,7 @@ class vkittiDataset(torch.utils.data.Dataset):
         if shuffle:
             print("Shuffling samples")
             random.Random(4).shuffle(self.ids)
-        
+
         catIds = self.coco.getCatIds()
         categories = self.coco.loadCats(catIds)
         self.categories = list(map(lambda x: x['name'], categories))
@@ -290,7 +282,7 @@ class vkittiDataset(torch.utils.data.Dataset):
         # coors in the form of NxHxW
         coors[:, 1] = torch.tensor(rand_x_coors, dtype=torch.long)
         coors[:, 0] = torch.tensor(rand_y_coors, dtype=torch.long)
-        coors = torch.tensor(coors, dtype=torch.long)
+        coors = coors.long()
 
         # find unique coordinates
         _, indices = torch.unique(coors[:, :2], dim=0, return_inverse=True)
@@ -341,7 +333,7 @@ class vkittiDataset(torch.utils.data.Dataset):
         # coors in the form of NxHxW
         coors[:, 1] = torch.tensor(rand_x_coors, dtype=torch.long)
         coors[:, 0] = torch.tensor(rand_y_coors, dtype=torch.long)
-        coors = torch.tensor(coors, dtype=torch.long)
+        coors = coors.long()
 
         # find unique coordinates
         _, indices = torch.unique(coors[:, :2], dim=0, return_inverse=True)
@@ -374,12 +366,12 @@ class vkittiDataset(torch.utils.data.Dataset):
         # plt.show()
         # imPts in NxHxW
         return imPts[inds, :][:config_kitti.N_NUMBER], depth[inds][:config_kitti.N_NUMBER]
-    
+
     def center_crop_mask(self, mask):
         cropy, cropx = config_kitti.CROP_OUTPUT_SIZE
         y, x = mask.shape
         startx = x//2 - cropx//2
-        starty = y//2 - cropy//2    
+        starty = y//2 - cropy//2
         return mask[starty:starty+cropy, startx:startx+cropx]
 
     def get_coco_ann(self, index):
@@ -397,21 +389,21 @@ class vkittiDataset(torch.utils.data.Dataset):
 
         # coco.showAnns(coco_annotation, draw_bbox=True)
         # plt.show()
- 
+
         # path for input image
         img_filename = coco.loadImgs(img_id)[0]['loc']
         # print("img_filename", img_filename)
         # open the input image
         # img = Image.open(path)
 
-
         # TODO: find semantic mask
         scene = img_filename.split("/")[-6]
         basename = img_filename.split(".")[-2].split("_")[-1]
 
-        semantic_img_filename = [s for s in self.semantic_imgs if (scene in s and basename in s)][0]
+        semantic_img_filename = [s for s in self.semantic_imgs if (
+            scene in s and basename in s)][0]
 
-        ## ---------------------------------
+        # ---------------------------------
         # semantic_mask_path = coco.loadImgs(img_id)[0]['semseg_img_filename']
         # # create semantic mask
 
@@ -457,14 +449,13 @@ class vkittiDataset(torch.utils.data.Dataset):
 
             iscrowd.append(coco_annotation[i]['iscrowd'])
 
-
             category_ids.append(category_id)
 
         if num_objs > 0:
             boxes = torch.as_tensor(boxes, dtype=torch.float32)
             areas = torch.as_tensor(areas, dtype=torch.float32)
             labels = torch.as_tensor(labels, dtype=torch.int64)
-            masks = torch.as_tensor(masks, dtype=torch.uint8)
+            masks = torch.as_tensor(np.array(masks), dtype=torch.uint8)
             iscrowd = torch.as_tensor(iscrowd, dtype=torch.int64)
         else:
             boxes = torch.zeros((0, 4), dtype=torch.float32)
@@ -496,7 +487,6 @@ class vkittiDataset(torch.utils.data.Dataset):
         my_annotation["num_instances"] = num_objs
         my_annotation['masks'] = masks
 
-
         my_annotation["semantic_mask"] = semantic_mask
 
         return img_filename, my_annotation
@@ -522,26 +512,23 @@ class vkittiDataset(torch.utils.data.Dataset):
                 scene in s and basename in s)][0]
             #print(img_filename, depth_filename)
 
-
             depth_filename = os.path.join(os.path.dirname(
                 os.path.abspath(__file__)), "..", config_kitti.DATA, depth_filename)
 
             depth_img = Image.open(depth_filename)
 
             if self.transforms is not None:
-            
+
                 depth_img = self.transforms(crop=self.crop)(depth_img)
-            
-            sparse_depth_gt_full = np.array(depth_img, dtype=int).astype(np.float)/256
+
+            sparse_depth_gt_full = np.array(
+                depth_img, dtype=int).astype(np.float)/256
             sparse_depth_gt_full = torch.from_numpy(sparse_depth_gt_full)
             sparse_depth_gt_full = torch.where(sparse_depth_gt_full >= config_kitti.MAX_DEPTH, torch.tensor([
-                                            0], dtype=torch.float64), sparse_depth_gt_full)
-            
+                0], dtype=torch.float64), sparse_depth_gt_full)
+
             # img width and height
 
-            
-
-            
             # print("sparse_depth_gt 1", sparse_depth_gt.shape)
             # print(torch.max(sparse_depth_gt), torch.min(sparse_depth_gt))
             # plt.imshow(source_img.permute(1,2,0))
@@ -570,7 +557,7 @@ class vkittiDataset(torch.utils.data.Dataset):
             #     depth, dtype=torch.float)
 
             sparse_depth[0, imPts[:, 0], imPts[:, 1]
-                        ] = depth.clone().detach().type(torch.float)
+                         ] = depth.clone().detach().type(torch.float)
 
             # -------Generate virtual ground truth
 
@@ -611,9 +598,8 @@ class vkittiDataset(torch.utils.data.Dataset):
 
 
 def get_transform(resize=False, normalize=False, crop=False):
-    
+
     custom_transforms = []
-    
 
     if crop:
         custom_transforms.append(
@@ -630,11 +616,12 @@ def get_datasets(imgs_root, semantic_root, annotation, depth_root=None, split=Fa
     # imgs_root, depth_root, annotation
 
     if is_test_set:
-        vkitti_dataset = vkitti_test_Dataset(imgs_root, transforms=get_transform, depth_root=depth_root, n_samples=n_samples, shuffle=False)
+        vkitti_dataset = vkitti_test_Dataset(
+            imgs_root, transforms=get_transform, depth_root=depth_root, n_samples=n_samples, shuffle=False)
     else:
         vkitti_dataset = vkittiDataset(
             imgs_root, semantic_root, annotation, transforms=get_transform, depth_root=depth_root, n_samples=n_samples, shuffle=shuffle)
-            
+
     if split:
         if val_size >= 1:
             raise AssertionError(
@@ -647,7 +634,8 @@ def get_datasets(imgs_root, semantic_root, annotation, depth_root=None, split=Fa
             raise AssertionError("datasets length cannot be zero")
 
         indices = list(range(len(vkitti_dataset)))
-        train_set = torch.utils.data.Subset(vkitti_dataset, indices[:len_train])
+        train_set = torch.utils.data.Subset(
+            vkitti_dataset, indices[:len_train])
         val_set = torch.utils.data.Subset(vkitti_dataset, indices[len_train:])
         # train_set, val_set = torch.utils.data.random_split(
         #     vkitti_dataset, [len_train, len_val])
@@ -660,12 +648,23 @@ def collate_fn(batch):
     return tuple(zip(*batch))
 
 
-def get_dataloaders(batch_size, imgs_root, semantic_root, depth_root, annotation, num_replicas, rank, split=False, val_size=0.20, n_samples=None, sampler=True, shuffle=True, is_test_set=False):
-    
+def get_dataloaders(batch_size,
+                    imgs_root,
+                    semantic_root,
+                    depth_root,
+                    annotation,
+                    num_replicas,
+                    rank,
+                    split=False,
+                    val_size=0.20,
+                    n_samples=None,
+                    sampler=True,
+                    shuffle=True,
+                    is_test_set=False):
+
     if split:
         train_set, val_set = get_datasets(
             imgs_root, semantic_root, annotation, depth_root=depth_root, split=True, val_size=val_size, n_samples=n_samples, shuffle=shuffle, is_test_set=is_test_set)
-        
 
         train_sampler = None
         val_sampler = None

@@ -15,6 +15,7 @@ from train import train_semseg_depth_input
 from train import train_semseg_depth_v2_loss_sum
 from train import train_panoptic
 from train import train_mask_rcnn
+from train import train_panoptic_depth
 from models import MODELS
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 
@@ -41,6 +42,8 @@ def get_train_loop(model_name):
         return train_panoptic.train
     if model_name == "MaskRcnn":
         return train_mask_rcnn.train
+    if model_name == "PanopticDepth":
+        return train_panoptic_depth.train
           
 
 if __name__ == "__main__":

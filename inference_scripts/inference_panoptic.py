@@ -191,8 +191,8 @@ def inference_panoptic(model, data_loader_val, args):
 
     id = 1
 
-    # for images, _, _, _, _, _, _, _, basename in data_loader_val:
-    for images, basename in data_loader_val:
+    for images, _, _, _, _, _, _, _, basename  in data_loader_val:
+    # for images, basename in data_loader_val:
         
         
         # segments_info = []
@@ -301,12 +301,19 @@ def inference(gpu, args):
     args.gpu = gpu
     rank = args.local_ranks * args.ngpus + gpu
     print("DEVICE", args.gpu)
-    model = models.get_model_by_name("PanopticSeg")
-    
-    model.to(args.gpu)
+    model = models.get_model_by_name("PanopticSeg").cuda(args.gpu)
+    params = [p for p in model.parameters() if p.requires_grad]
+    # model.to(args.gpu)
 
     imgs_root = os.path.join(os.path.dirname(os.path.abspath(
             __file__)), "..", args.data_folder, "vkitti_2.0.3_rgb/")
+    
+    semantic_root = os.path.join(os.path.dirname(os.path.abspath(
+            __file__)), "..", args.data_folder, "semseg_bin/") 
+
+    depth_root = os.path.join(os.path.dirname(os.path.abspath(
+        __file__)), "..", args.data_folder, "vkitti_2.0.3_depth/")
+
 
     # semantic_root = os.path.join(os.path.dirname(os.path.abspath(
     #         __file__)), "..", config_kitti.DATA, "vkitti_2.0.3_classSegmentation/") 
@@ -328,20 +335,35 @@ def inference(gpu, args):
             raise ValueError("Either datalodar or data_folder has to be provided")
 
 
+        # data_loader, _ = get_dataloaders(
+        # args.batch_size,
+        # imgs_root,
+        # None,
+        # None,
+        # annotation,
+        # num_replicas=args.world_size,
+        # rank=rank,
+        # split=False,
+        # val_size=None,
+        # n_samples=config_kitti.MAX_TRAINING_SAMPLES,
+        # sampler=False,
+        # shuffle=False,
+        # is_test_set=True)
+
         data_loader, _ = get_dataloaders(
-        args.batch_size,
-        imgs_root,
-        None,
-        None,
-        annotation,
-        num_replicas=args.world_size,
-        rank=rank,
-        split=False,
-        val_size=None,
-        n_samples=config_kitti.MAX_TRAINING_SAMPLES,
-        sampler=False,
-        shuffle=False,
-        is_test_set=True)
+            args.batch_size,
+            imgs_root,
+            semantic_root,
+            depth_root,
+            annotation,
+            num_replicas=args.world_size,
+            rank=rank,
+            split=True,
+            val_size=config_kitti.VAL_SIZE,
+            n_samples=config_kitti.MAX_TRAINING_SAMPLES,
+            sampler=False,
+            shuffle=True,
+            is_test_set=False)
 
     else:
         data_loader = args.dataloader

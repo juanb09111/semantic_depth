@@ -69,17 +69,18 @@ def __update_model_wrapper(model, optimizer, device, rank, writer):
         # losses = sum(loss for loss in loss_dict.values())
 
         i = trainer_engine.state.iteration
+        epoch = trainer_engine.state.epoch
 
-        if i <= 50:
-            losses = sum(loss[1] for loss in loss_dict.iteritems() if loss[0] is "depth_loss")
+        if epoch <= 50:
+            losses = sum(loss[1] for loss in loss_dict.items() if loss[0] is "depth_loss")
 
-        if i <= 100 and i > 50:
-            losses = sum(loss[1] for loss in loss_dict.iteritems() if loss[0] is "semantic_loss")
+        if epoch <= 100 and i > 50:
+            losses = sum(loss[1] for loss in loss_dict.items() if loss[0] is "semantic_loss")
 
-        if i <= 150 and i > 100:
-            losses = sum(loss[1] for loss in loss_dict.iteritems() if loss[0] not in ["semantic_loss", "depth_loss"] )
+        if epoch <= 150 and i > 100:
+            losses = sum(loss[1] for loss in loss_dict.items() if loss[0] not in ["semantic_loss", "depth_loss"] )
 
-        if i <= 200 and i > 150:
+        if epoch <= 200 and i > 150:
             losses = sum(loss for loss in loss_dict.values())
 
         if rank == 0:
@@ -237,13 +238,21 @@ def train(gpu, args):
     # optimizer = torch.optim.SGD(
     #     params, lr=0.005, momentum=0.9, weight_decay=0.00005)
 
-    # fusenet optimizer
-    optimizer = torch.optim.SGD(
-        params, lr=0.0016, momentum=0.9, weight_decay=0.00005)
+    # fusenet/semantic optimizer
+    # optimizer = torch.optim.SGD(
+    #     params, lr=0.0016, momentum=0.9, weight_decay=0.00005)
+
+    # instance
+    # optimizer = torch.optim.SGD(
+        # params, lr=0.0025, momentum=0.9, weight_decay=0.0005)
 
     # Panoptic depth optimizer
     # optimizer = torch.optim.SGD(
     #     params, lr=0.0001, momentum=0.9, weight_decay=0.00005)
+
+    # joint 
+    optimizer = torch.optim.SGD(
+        params, lr=0.0016, momentum=0.9, weight_decay=0.00005)
 
     if args.checkpoint is not None:
 
@@ -327,7 +336,7 @@ def train(gpu, args):
 
     if args.checkpoint is not None:
         epoch = checkpoint['epoch']
-        iteration: checkpoint['iteration']
+        iteration = checkpoint['iteration']
         ignite_engine.add_event_handler(
             Events.STARTED, __setup_state_wrapper(epoch, iteration))
 

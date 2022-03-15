@@ -100,7 +100,7 @@ def __log_validation_results_wrapper(model, optimizer, data_loader_val, all_cate
         max_epochs = trainer_engine.state.max_epochs
         i = trainer_engine.state.iteration
         weights_path = "{}{}_loss_{}.pth".format(
-            constants.MODELS_LOC, "Panoptic_Seg", batch_loss)
+            constants.MODELS_LOC, constants.PANOPTIC_MODEL_NAME, batch_loss)
         
         if rank == 0:
             dict_model = {
@@ -163,13 +163,13 @@ def train(gpu, args):
 
     # Write results in text file
     
-    res_filename = "results_{}".format("PanopticSeg")
+    res_filename = "results_{}".format(constants.PANOPTIC_MODEL_NAME)
     train_res_file = os.path.join(os.path.dirname(
         os.path.abspath(__file__)), "..", constants.RES_LOC, res_filename)
 
     with open(train_res_file, "w+") as training_results:
         training_results.write(
-            "----- TRAINING RESULTS - Vkitti {} ----".format("PanopticSeg")+"\n")
+            "----- TRAINING RESULTS - Vkitti {} ----".format(constants.PANOPTIC_MODEL_NAME)+"\n")
     # Set device
     temp_variables.DEVICE = args.gpu
     
@@ -194,8 +194,7 @@ def train(gpu, args):
     # optimizer = torch.optim.SGD(
         # params, lr=0.0002, momentum=0.9, weight_decay=0.00005)
 
-    optimizer = torch.optim.SGD(
-        params, lr=0.005, momentum=0.9, weight_decay=0.0005)
+    optimizer = torch.optim.SGD(params, lr=0.0016, momentum=0.9, weight_decay=0.0005)
     
     if args.checkpoint is not None:
 
@@ -234,10 +233,10 @@ def train(gpu, args):
     else:
 
         imgs_root = os.path.join(os.path.dirname(os.path.abspath(
-            __file__)), "..", config_kitti.DATA, "vkitti_2.0.3_rgb/")
+            __file__)), "..", config_kitti.DATA, config_kitti.RGB_DATA)
 
         semantic_root = os.path.join(os.path.dirname(os.path.abspath(
-            __file__)), "..", config_kitti.DATA, "semseg_bin/") 
+            __file__)), "..", config_kitti.DATA, config_kitti.SEMANTIC_SEGMENTATION_DATA) 
         
  
         data_loader_train, data_loader_val = get_dataloaders(
@@ -269,7 +268,7 @@ def train(gpu, args):
         data_loader_2_coco_ann(data_loader_val_filename, annotation)
 
     if rank ==0:
-        writer = SummaryWriter(log_dir="runs/Panoptic_jd_1080_1920_lr=0.005_momentum=0.9_weight_decay=0.0005_all_samples")
+        writer = SummaryWriter(log_dir="runs/Panoptic_032022")
     else:
         writer=None
 

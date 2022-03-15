@@ -7,7 +7,7 @@ from argparse import ArgumentParser
 from inference_scripts import inference_depth_completion
 from inference_scripts import inference_Fusenet
 from inference_scripts import inference_panoptic
-from inference_scripts import inference_instance
+# from inference_scripts import inference_instance
 from inference_scripts import inference_semseg_depth
 from inference_scripts import inference_semseg_net
 from models import MODELS
@@ -19,8 +19,8 @@ def get_inference_loop(model_name):
         return inference_semseg_depth.inference
     if model_name == "PanopticSeg":
         return inference_panoptic.inference
-    if model_name == "MaskRcnn":
-        return inference_instance.inference
+    # if model_name == "MaskRcnn":
+    #     return inference_instance.inference
           
 
 if __name__ == "__main__":

@@ -44,3 +44,7 @@ ANN_TRAIN_DEFAULT_NAME_BG = "coco_ann_train_bg.json"
 #EVALUATION
 
 COCO_RES_JSON_FILENAME = "tmp/coco_ann/COCO_val_res.json"
+
+
+# NAMES
+PANOPTIC_MODEL_NAME = "PANOPTIC_SEG"

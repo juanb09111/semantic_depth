@@ -55,8 +55,9 @@ def get_img_obj(img_obj, file_list):
     
     file_name = img_obj["file_name"]
     full_path = list(filter(lambda fname: fname.split("/")[-1] == file_name, file_list))[0]
-
-    obj = {**img_obj, "loc": full_path}
+    loc = full_path.split("/").index(config_kitti.RGB_DATA)
+    loc = "/".join(full_path.split("/")[loc:])
+    obj = {**img_obj, "loc": loc}
 
     return obj
 
@@ -80,12 +81,12 @@ def map_loc(rgb_root,ann_file ):
 
     ann_data["images"] = img_list
 
-    with open("COCO_ann_loc_2.json", 'w') as outfile:
+    with open("COCO_ann_loc_03_2022.json", 'w') as outfile:
         json.dump(ann_data, outfile)
 
 
 # data_folder_name = config_kitti.DATA
-data_folder_name = "data_jd"
+data_folder_name = "data_jd_2022"
 
 imgs_root = os.path.join(os.path.dirname(os.path.abspath(
     __file__)), "..",  data_folder_name, config_kitti.RGB_DATA)

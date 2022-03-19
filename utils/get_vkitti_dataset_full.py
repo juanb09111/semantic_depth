@@ -37,10 +37,13 @@ def get_vkitti_files(dirName, ext):
 
 
 class vkitti_test_Dataset(torch.utils.data.Dataset):
-    def __init__(self, imgs_root, transforms, depth_root=None, n_samples=None, shuffle=False):
+    def __init__(self, imgs_root, transforms, depth_root=None, n_samples=None, shuffle=False, reverse=False):
 
         self.imgs_root = imgs_root
         self.source_img_list = list(sorted(get_vkitti_files(imgs_root, "jpg")))
+
+        if reverse:
+            self.source_img_list.reverse()
 
         self.depth_root = depth_root
 
@@ -202,8 +205,8 @@ class vkitti_test_Dataset(torch.utils.data.Dataset):
 
             if self.transforms is not None:
                 source_img = self.transforms(crop=self.crop)(source_img)
-
-            return source_img, basename
+            # print(img_filename)
+            return source_img, basename, img_filename
 
     def __len__(self):
         return len(self.source_img_list)
@@ -612,12 +615,12 @@ def get_transform(resize=False, normalize=False, crop=False):
     return transforms.Compose(custom_transforms)
 
 
-def get_datasets(imgs_root, semantic_root, annotation, depth_root=None, split=False, val_size=0.20, n_samples=None, shuffle=True, is_test_set=False):
+def get_datasets(imgs_root, semantic_root, annotation, depth_root=None, split=False, val_size=0.20, n_samples=None, shuffle=True, is_test_set=False, reverse=False):
     # imgs_root, depth_root, annotation
 
     if is_test_set:
         vkitti_dataset = vkitti_test_Dataset(
-            imgs_root, transforms=get_transform, depth_root=depth_root, n_samples=n_samples, shuffle=False)
+            imgs_root, transforms=get_transform, depth_root=depth_root, n_samples=n_samples, shuffle=False, reverse=reverse)
     else:
         vkitti_dataset = vkittiDataset(
             imgs_root, semantic_root, annotation, transforms=get_transform, depth_root=depth_root, n_samples=n_samples, shuffle=shuffle)
@@ -660,11 +663,12 @@ def get_dataloaders(batch_size,
                     n_samples=None,
                     sampler=True,
                     shuffle=True,
-                    is_test_set=False):
+                    is_test_set=False,
+                    reverse=False):
 
     if split:
         train_set, val_set = get_datasets(
-            imgs_root, semantic_root, annotation, depth_root=depth_root, split=True, val_size=val_size, n_samples=n_samples, shuffle=shuffle, is_test_set=is_test_set)
+            imgs_root, semantic_root, annotation, depth_root=depth_root, split=True, val_size=val_size, n_samples=n_samples, shuffle=shuffle, is_test_set=is_test_set, reverse=reverse)
 
         train_sampler = None
         val_sampler = None
@@ -693,7 +697,7 @@ def get_dataloaders(batch_size,
 
     else:
         dataset = get_datasets(imgs_root, semantic_root, annotation, depth_root=depth_root,
-                               split=False, val_size=val_size, n_samples=n_samples, shuffle=shuffle, is_test_set=is_test_set)
+                               split=False, val_size=val_size, n_samples=n_samples, shuffle=shuffle, is_test_set=is_test_set, reverse=reverse)
 
         data_loader = torch.utils.data.DataLoader(dataset,
                                                   batch_size=batch_size,

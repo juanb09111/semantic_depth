@@ -58,7 +58,7 @@ def update_unmatched(ids, boxes, masks):
     trk_ids_dict.update(unmatched_obj)
 
 
-def init_tracker(num_ids, boxes, masks, device):
+def init_tracker(num_ids, boxes, masks, labels, device):
 
     # Init count of frames
     count = torch.tensor([1], device=device)
@@ -67,14 +67,14 @@ def init_tracker(num_ids, boxes, masks, device):
     ids_arr = torch.tensor(
         [torch.tensor(idx + start) for idx in range(num_ids)], device=device
     )
-
+    print("seed ids:", ids_arr)
     # Removre info from other frames if they exist
     for n in range(config_kitti.NUM_FRAMES):
         trk_ids_dict.pop("{}".format(n + 1), None)
 
     # Frames count starts from 1
     new_ids_obj = {
-        "1": {"ids_arr": ids_arr, "unmatched": {"boxes": boxes, "masks": masks}}
+        "1": {"ids_arr": ids_arr, "unmatched": {"boxes": boxes, "masks": masks, "labels": labels, "ids": ids_arr}}
     }
 
     # Populate active ids
@@ -126,93 +126,135 @@ def get_tracked_objects(
             max_trk,
             new_boxes[: config_kitti.MAX_DETECTIONS],
             new_masks[: config_kitti.MAX_DETECTIONS],
+            new_labels[: config_kitti.MAX_DETECTIONS],
             device=device,
         )
 
     # TODO: Handle negative samples
     if len(prev_boxes) == 0:
-        return init_tracker(max_trk, [], [], device=device), None, None
+        return init_tracker(max_trk, [], [], [], device=device)
 
     if len(new_boxes) == 0:
-        return new_ids, None, None
+        return new_ids
 
-    # Update using lk
-    prev_boxes, prev_masks = lucas_kanade_per_mask(
-        prev_fname, new_fname, prev_masks, prev_boxes, 0.5
-    )
+    # Update/init variables -----------------------
 
-    # ----------------------
-    # #TODO: lk on all previous frames 
-
-    # for n in range(config_kitti.NUM_FRAMES):
-    #     key = str(n+1)
-    #     if key in trk_ids_dict.keys():
-    #         frame_boxes = trk_ids_dict["{}".format(n + 1)]["unmatched"]["boxes"]
-    #         frame_masks = trk_ids_dict["{}".format(n + 1)]["unmatched"]["masks"]
-    #         if len(frame_boxes) > 0:
-    #             frame_boxes, frame_masks = lucas_kanade_per_mask(
-    #                 prev_fname, new_fname, frame_masks, frame_boxes, 0.5
-    #             )
-    #             trk_ids_dict["{}".format(n + 1)]["unmatched"]["boxes"] = frame_boxes
-    #             trk_ids_dict["{}".format(n + 1)]["unmatched"]["masks"] = frame_masks
-    # ------------------------------
-
-    # Calculate iou matrix
-    iou_matrix = torch.zeros(
-        new_boxes[:max_trk].shape[0], prev_boxes.shape[0], device=device
-    )
-    blockspergrid = (
-        len(prev_boxes) * len(new_boxes[:max_trk]) + (threadsperblock - 1)
-    ) // threadsperblock
-
-    mapped_prev_labels = torch.tensor(
-        list(map(lambda val: map_to_super_class(val, super_cat_indices), prev_labels)),
-        device=temp_variables.DEVICE,
-    )
-    mapped_new_labels = torch.tensor(
-        list(map(lambda val: map_to_super_class(val, super_cat_indices), new_labels)),
-        device=temp_variables.DEVICE,
-    )
-
-    # get_iou_matrix[blockspergrid, threadsperblock](iou_matrix, prev_boxes, new_boxes[:max_trk], prev_labels, new_labels)
-    get_iou_matrix[blockspergrid, threadsperblock](
-        iou_matrix,
-        prev_boxes,
-        new_boxes[:max_trk],
-        mapped_prev_labels,
-        mapped_new_labels,
-    )
-
-    # Ids not used yet
-
-    available_ids = np.setdiff1d(ids_bank, trk_ids_dict["active"])
+    # unmatched
+    # unmatched indices from latest frame
+    unmatched_indices = [x for x in range(max_trk)]
+    matched_indices = []
 
     # current frame
     current_frame = trk_ids_dict["count"][0] + 1
 
-    # prev ids
-    prev_ids = trk_ids_dict["{}".format(current_frame - 1)]["ids_arr"]
-    # unmatched from prev_ids
-    unmatched_indices = [x for x in range(max_trk)]
-    for idx in range(max_trk):
+    # -------------------------------------------
+    frame_limit = min(config_kitti.NUM_FRAMES, current_frame - 1)
+    print("frame limit is: ", frame_limit)
+    # TODO: reverse Loop over prev frames and update with lk -----------------------------------------------------
 
-        # Get matches for the current detection
-        row = iou_matrix[idx, :]
-        max_val = torch.max(row)
-        # Get column index corresponding to prev detections
-        max_val_idx = torch.argmax(row)
+    for n in range(frame_limit, 0, -1):
+        
+        print("finding matches from frame {}.......".format(n))
+        # lukas kanade, move all of previous unmatched detections to the latest frame
+        trk_ids_dict["{}".format(n)]["unmatched"]["boxes"], trk_ids_dict["{}".format(n)]["unmatched"]["masks"] = lucas_kanade_per_mask(
+            prev_fname, new_fname, trk_ids_dict["{}".format(
+                n)]["unmatched"]["masks"],
+            trk_ids_dict["{}".format(n)]["unmatched"]["boxes"],
+            0.5
+        )
+        # end lukas kanade
+        # TODO: Check that order is kept after lk.
+        unmatched = trk_ids_dict["{}".format(n)]["unmatched"]
+        unmatched_boxes = unmatched["boxes"]
+        # unmatched_masks = unmatched["masks"]
+        unmatched_labels = unmatched["labels"]
+        unmatched_ids = unmatched["ids"]  # unmatched ids from previous frames
 
-        if max_val > iou_threshold:
-            new_ids[idx] = prev_ids[max_val_idx]
-            # remove from unmatched
-            unmatched_indices.remove(idx)
-        else:
-            new_ids[idx] = available_ids[0]
-            available_ids = available_ids[1:]
+        print("unmatched ids from frame {} (before): {}".format(n, unmatched_ids))
 
-    unmatched_boxes = [new_boxes[i] for i in unmatched_indices]
-    unmatched_masks = [new_masks[i] for i in unmatched_indices]
-    unmatched_obj = {"boxes": unmatched_boxes, "masks": unmatched_masks}
+        # calculate only if there are unmatched items
+        if len(unmatched_ids) > 0 and len(unmatched_indices) > 0:
+            # Calculate iou matrix
+            iou_matrix = torch.zeros(
+                new_boxes[:max_trk].shape[0], unmatched_boxes.shape[0], device=device
+            )
+            blockspergrid = (
+                len(unmatched_boxes) *
+                len(new_boxes[:max_trk]) + (threadsperblock - 1)
+            ) // threadsperblock
+
+            mapped_unmatched_labels = torch.tensor(
+                list(map(lambda val: map_to_super_class(
+                    val, super_cat_indices), unmatched_labels)),
+                device=temp_variables.DEVICE,
+            )
+            mapped_new_labels = torch.tensor(
+                list(map(lambda val: map_to_super_class(
+                    val, super_cat_indices), new_labels)),
+                device=temp_variables.DEVICE,
+            )
+
+            # get_iou_matrix[blockspergrid, threadsperblock](iou_matrix, prev_boxes, new_boxes[:max_trk], prev_labels, new_labels)
+            get_iou_matrix[blockspergrid, threadsperblock](
+                iou_matrix,
+                unmatched_boxes,
+                new_boxes[:max_trk],
+                mapped_unmatched_labels,
+                mapped_new_labels
+            )
+
+            # update iou matrix, set already matched new_detections to 0
+            for matched_ind in matched_indices:
+                iou_matrix[matched_ind, :] = 0
+
+            # Ids not used yet
+            available_ids = np.setdiff1d(ids_bank, trk_ids_dict["active"])
+
+            # TODO: Change to unmatched prev ids
+            # DONE
+            matched_prev_indices = []
+            unamtched_prev_indices = [x for x in range(iou_matrix.shape[1])]
+            print("unamtched_prev_indices", unamtched_prev_indices)
+            for idx in range(max_trk):
+
+                # Get matches for the current detection
+                row = iou_matrix[idx, :]
+                max_val = torch.max(row)
+                # Get column index corresponding to prev detections
+                max_val_idx = torch.argmax(row)
+
+                if max_val > iou_threshold and idx not in matched_indices:
+                    new_ids[idx] = unmatched_ids[max_val_idx]
+                    matched_prev_indices.append(max_val_idx)
+                    unamtched_prev_indices.remove(max_val_idx)
+                    # update iou to avoid double hit
+                    iou_matrix[:, max_val_idx] = 0
+
+                    # remove indices from new detections from unmatched
+                    unmatched_indices.remove(idx)
+                    matched_indices.append(idx)
+
+
+                elif idx not in matched_indices:  # as long as the new det has not already been matched --> assign new id
+                    new_ids[idx] = available_ids[0]
+                    available_ids = available_ids[1:]
+
+            # Update prev unmatch and
+            # for unmatched_prev_idx in unamtched_prev_indices:
+            for key in ["boxes", "masks", "labels", "ids"]:
+                arr = trk_ids_dict["{}".format(n)]["unmatched"][key]
+                indices = torch.tensor(unamtched_prev_indices, device=device, dtype=torch.long)
+                print("indices to keep (unmatched from prev frame): {}".format(indices))
+                trk_ids_dict["{}".format(n)]["unmatched"][key] = torch.index_select(arr, 0, indices)
+                
+
+            print("unmatched ids from frame {} - after: {}".format(n, trk_ids_dict["{}".format(n)]["unmatched"]["ids"]))
+
+    unmatched_obj = {"boxes": new_boxes[: config_kitti.MAX_DETECTIONS],
+                     "masks": new_masks[: config_kitti.MAX_DETECTIONS],
+                     "labels": new_labels[: config_kitti.MAX_DETECTIONS],
+                     "ids": new_ids}
+    print("new frame ids:", new_ids)
     # Update ids used in this frame, this contains all the ids used in the last config_kitti.NUM_FRAMES frames
     active_ids_arr = torch.tensor([], device=device)
 
@@ -227,7 +269,7 @@ def get_tracked_objects(
             ]["ids_arr"]
 
             # update unmatched
-            for name in ["boxes", "masks"]:
+            for name in ["boxes", "masks", "labels", "ids"]:
                 trk_ids_dict["{}".format(n + 1)]["unmatched"][name] = trk_ids_dict[
                     "{}".format(n + 2)
                 ]["unmatched"][name]
@@ -239,7 +281,8 @@ def get_tracked_objects(
 
         trk_ids_dict["{}".format(config_kitti.NUM_FRAMES)]["ids_arr"] = new_ids
 
-        trk_ids_dict["{}".format(config_kitti.NUM_FRAMES)]["unmatched"] = unmatched_obj
+        trk_ids_dict["{}".format(config_kitti.NUM_FRAMES)
+                     ]["unmatched"] = unmatched_obj
 
         # update active ids
         active_ids_arr = [*active_ids_arr, *new_ids]

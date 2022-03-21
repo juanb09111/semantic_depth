@@ -19,7 +19,7 @@ from utils.panoptic_fusion import (
 from utils.get_vkitti_dataset_full import get_dataloaders
 from utils.apply_panoptic_mask_gpu import apply_panoptic_mask_gpu
 from utils.get_stuff_thing_classes import get_stuff_thing_classes
-from utils.tracker import get_tracked_objects
+from utils.tracker_no_recycle import get_tracked_objects
 
 import matplotlib.patches as patches
 from PIL import Image as im
@@ -81,7 +81,7 @@ def save_mask(mask, file_name, dst, args):
     data.save(dst)
 
 
-def save_fig(im, file_name, summary, dst, boxes, labels, ids, args):
+def save_fig(im, file_name, summary, dst, boxes, labels, ids, args, draw_boxes=True):
 
     this_path = os.path.dirname(__file__)
 
@@ -117,34 +117,35 @@ def save_fig(im, file_name, summary, dst, boxes, labels, ids, args):
         )
         c = c + 1
 
-    for idx, box in enumerate(boxes):
+    if draw_boxes:
+        for idx, box in enumerate(boxes):
 
-        label = labels[idx]
+            label = labels[idx]
 
-        if len(ids) > 0:
-            obj_id = ids[idx]
-        else:
-            obj_id = "-"
+            if len(ids) > 0:
+                obj_id = ids[idx]
+            else:
+                obj_id = "-"
 
-        x1, y1, x2, y2 = box.cpu().numpy()
+            x1, y1, x2, y2 = box.cpu().numpy()
 
-        x_delta = x2 - x1
-        y_delta = y2 - y1
+            x_delta = x2 - x1
+            y_delta = y2 - y1
 
-        rect = patches.Rectangle(
-            (x1, y1), x_delta, y_delta, linewidth=1, edgecolor="r", facecolor="none"
-        )
+            rect = patches.Rectangle(
+                (x1, y1), x_delta, y_delta, linewidth=1, edgecolor="r", facecolor="none"
+            )
 
-        # Add the patch to the Axes
-        ax.add_patch(rect)
-        ax.text(
-            x2,
-            y2 - 10,
-            "{}, id: {}".format(label, obj_id),
-            color="white",
-            fontsize=15,
-            bbox={"facecolor": "black", "alpha": 0.5, "pad": 3},
-        )
+            # Add the patch to the Axes
+            ax.add_patch(rect)
+            ax.text(
+                x2,
+                y2 - 10,
+                "{}, id: {}".format(label, obj_id),
+                color="white",
+                fontsize=15,
+                bbox={"facecolor": "black", "alpha": 0.5, "pad": 3},
+            )
 
     ax.imshow(im, interpolation="nearest", aspect="auto")
     # plt.axis('off')
@@ -175,11 +176,13 @@ def get_ann_obj(canvas, ids_label_map, all_categories, thing_categories):
                 )[0]["id"]
 
                 score = id_2_label[2]["score"].item()
+                bbox = id_2_label[2]["bbox"].cpu().numpy().tolist()
             else:
                 category_id = id_2_label[1]
                 cat = list(filter(lambda a: a["id"] == category_id, all_categories))[0]
                 cat_id = id_2_label[1].item()
                 score = 0
+                bbox = []
 
             obj = {
                 "id": val.item(),
@@ -188,6 +191,7 @@ def get_ann_obj(canvas, ids_label_map, all_categories, thing_categories):
                 "category_id": cat_id,
                 "cat_name": cat["name"],
                 "score": score,
+                "bbox": bbox
             }
             # print(obj)
             obj_arr.append(obj)
@@ -279,12 +283,8 @@ def inference_panoptic(model, data_loader_val, args):
             if len(tracked_obj) > 0:
                 sorted_preds[0]["boxes"] = sorted_preds[0]["boxes"][: len(tracked_obj)]
                 sorted_preds[0]["masks"] = sorted_preds[0]["masks"][: len(tracked_obj)]
-                sorted_preds[0]["scores"] = sorted_preds[0]["scores"][
-                    : len(tracked_obj)
-                ]
-                sorted_preds[0]["labels"] = sorted_preds[0]["labels"][
-                    : len(tracked_obj)
-                ]
+                sorted_preds[0]["scores"] = sorted_preds[0]["scores"][: len(tracked_obj)]
+                sorted_preds[0]["labels"] = sorted_preds[0]["labels"][: len(tracked_obj)]
 
         if len(sorted_preds[0]["masks"]) > 0:
 
@@ -317,12 +317,15 @@ def inference_panoptic(model, data_loader_val, args):
             # print(basename[0], unique_val, ids_label_map_batch[0])
             # print("basename", basename[0])
 
+            boxes = sorted_preds[0]["boxes"]
+            labels = sorted_preds[0]["labels"]
+
             if config_kitti.OBJECT_TRACKING:
                 obj_arr = get_ann_obj(
                     canvas,
                     ids_label_map_batch[0],
                     args.all_categories,
-                    args.thing_categories,
+                    args.thing_categories
                 )
 
                 res_data["annotations"].append({"segments_info": obj_arr})
@@ -337,8 +340,6 @@ def inference_panoptic(model, data_loader_val, args):
             im = apply_panoptic_mask_gpu(imgs[0], canvas).cpu().permute(1, 2, 0).numpy()
 
             # Save results
-            boxes = sorted_preds[0]["boxes"]
-            labels = sorted_preds[0]["labels"]
 
             dst = os.path.join(args.dst)
 
@@ -346,7 +347,7 @@ def inference_panoptic(model, data_loader_val, args):
             save_mask(canvas, basename[0], dst, args)
 
             # Visualize results
-            save_fig(im, basename[0], summary_batch[0], dst, boxes, labels, ids, args)
+            save_fig(im, basename[0], summary_batch[0], dst, boxes, labels, ids, args, draw_boxes=False)
 
             prev_det = sorted_preds
             prev_img_filename = img_filename[0]

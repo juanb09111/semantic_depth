@@ -3,6 +3,7 @@
 import os
 import os.path
 import numpy as np
+import copy
 import torch
 from torch import nn
 import torch.distributed as dist
@@ -81,7 +82,7 @@ def save_mask(mask, file_name, dst, args):
     data.save(dst)
 
 
-def save_fig(im, file_name, summary, dst, boxes, labels, ids, args, draw_boxes=True):
+def save_fig(im, file_name, summary, dst, boxes, labels, ids,  unmatched_boxes, unmatched_labels, unmatched_ids, args, draw_boxes=True):
 
     this_path = os.path.dirname(__file__)
 
@@ -94,6 +95,7 @@ def save_fig(im, file_name, summary, dst, boxes, labels, ids, args, draw_boxes=T
     dst = os.path.join(dst_folder, "{}.png".format(file_name))
 
     labels = map_cat(labels, args.all_categories, args.thing_categories)
+    unmatched_labels = map_cat(unmatched_labels, args.all_categories, args.thing_categories)
 
     height, width = im.shape[:2]
 
@@ -134,6 +136,35 @@ def save_fig(im, file_name, summary, dst, boxes, labels, ids, args, draw_boxes=T
 
             rect = patches.Rectangle(
                 (x1, y1), x_delta, y_delta, linewidth=1, edgecolor="r", facecolor="none"
+            )
+
+            # Add the patch to the Axes
+            ax.add_patch(rect)
+            ax.text(
+                x2,
+                y2 - 10,
+                "{}, id: {}".format(label, obj_id),
+                color="white",
+                fontsize=15,
+                bbox={"facecolor": "black", "alpha": 0.5, "pad": 3},
+            )
+
+        for idx, box in enumerate(unmatched_boxes):
+
+            label = unmatched_labels[idx]
+
+            if len(unmatched_ids) > 0:
+                obj_id = unmatched_ids[idx]
+            else:
+                obj_id = "-"
+
+            x1, y1, x2, y2 = box.cpu().numpy()
+
+            x_delta = x2 - x1
+            y_delta = y2 - y1
+
+            rect = patches.Rectangle(
+                (x1, y1), x_delta, y_delta, linewidth=1, edgecolor="yellow", facecolor="none"
             )
 
             # Add the patch to the Axes
@@ -249,7 +280,7 @@ def inference_panoptic(model, data_loader_val, args):
         if config_kitti.OBJECT_TRACKING:
             tracked_obj = None
             if prev_det is None:
-                tracked_obj = get_tracked_objects(
+                tracked_obj, untracked_obj = get_tracked_objects(
                     None,
                     new_img_filename,
                     None,
@@ -258,12 +289,14 @@ def inference_panoptic(model, data_loader_val, args):
                     sorted_preds[0]["boxes"],
                     None,
                     sorted_preds[0]["labels"],
+                    None,
+                    sorted_preds[0]["scores"],
                     args.super_cat_indices,
                     iou_threshold,
                     args.gpu,
                 )
             else:
-                tracked_obj = get_tracked_objects(
+                tracked_obj, untracked_obj = get_tracked_objects(
                     prev_img_filename,
                     new_img_filename,
                     prev_det[0]["masks"],
@@ -272,6 +305,8 @@ def inference_panoptic(model, data_loader_val, args):
                     sorted_preds[0]["boxes"],
                     prev_det[0]["labels"],
                     sorted_preds[0]["labels"],
+                    prev_det[0]["scores"],
+                    sorted_preds[0]["scores"],
                     args.super_cat_indices,
                     iou_threshold,
                     args.gpu,
@@ -285,8 +320,30 @@ def inference_panoptic(model, data_loader_val, args):
                 sorted_preds[0]["masks"] = sorted_preds[0]["masks"][: len(tracked_obj)]
                 sorted_preds[0]["scores"] = sorted_preds[0]["scores"][: len(tracked_obj)]
                 sorted_preds[0]["labels"] = sorted_preds[0]["labels"][: len(tracked_obj)]
+            
+            #Extend sorted_preds with unmatched
+            unmatched_boxes = []
+            unmatched_labels = []
+            unmatched_ids = []
+            
+            sorted_preds_extended = copy.deepcopy(sorted_preds)
+            if untracked_obj is not None:
+                unmatched_boxes= untracked_obj["boxes"]
+                unmatched_masks = untracked_obj["masks"]
+                unmatched_scores = untracked_obj["scores"]
+                unmatched_labels= untracked_obj["labels"]
+                unmatched_ids= untracked_obj["ids"]
+
+                sorted_preds_extended[0]["boxes"] = torch.cat((sorted_preds[0]["boxes"], unmatched_boxes), 0)
+                sorted_preds_extended[0]["masks"] = torch.cat((sorted_preds[0]["masks"], unmatched_masks), 0)
+                sorted_preds_extended[0]["scores"] = torch.cat((sorted_preds[0]["scores"], unmatched_scores), 0)
+                sorted_preds_extended[0]["labels"] = torch.cat((sorted_preds[0]["labels"], unmatched_labels), 0)
+                sorted_preds_extended[0]["ids"] = torch.cat((sorted_preds[0]["ids"], unmatched_ids), 0)
 
         if len(sorted_preds[0]["masks"]) > 0:
+
+            #Update prev_det
+            prev_det = sorted_preds
 
             # Get intermediate prediction and semantice prediction
             (
@@ -295,7 +352,7 @@ def inference_panoptic(model, data_loader_val, args):
                 summary_batch,
                 ids_label_map_batch,
             ) = panoptic_fusion(
-                sorted_preds,
+                sorted_preds_extended,
                 args.all_categories,
                 args.stuff_categories,
                 args.thing_categories,
@@ -319,6 +376,7 @@ def inference_panoptic(model, data_loader_val, args):
 
             boxes = sorted_preds[0]["boxes"]
             labels = sorted_preds[0]["labels"]
+            
 
             if config_kitti.OBJECT_TRACKING:
                 obj_arr = get_ann_obj(
@@ -347,9 +405,8 @@ def inference_panoptic(model, data_loader_val, args):
             save_mask(canvas, basename[0], dst, args)
 
             # Visualize results
-            save_fig(im, basename[0], summary_batch[0], dst, boxes, labels, ids, args, draw_boxes=False)
+            save_fig(im, basename[0], summary_batch[0], dst, boxes, labels, ids, unmatched_boxes, unmatched_labels, unmatched_ids, args, draw_boxes=False)
 
-            prev_det = sorted_preds
             prev_img_filename = img_filename[0]
 
         else:
@@ -364,7 +421,7 @@ def inference_panoptic(model, data_loader_val, args):
             )
 
             dst = os.path.join(args.dst)
-            save_fig(im, basename[0], [], dst, [], [], [], args)
+            save_fig(im, basename[0], [], dst, [], [], [], [], [], [], args)
             print("No objects detected for: ", basename[0])
 
     this_path = os.path.dirname(__file__)

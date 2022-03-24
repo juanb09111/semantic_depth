@@ -83,6 +83,101 @@ def post_process(ann_file, out_json):
     post_process_res = {**ann_data, "annotations": annotations}
     with open(out_json, 'w') as res_file:
         json.dump(post_process_res, res_file)
+
+
+def post_process_nframes(ann_file, out_json, nframes=5):
+
+    with open(ann_file) as f:
+        ann_data = json.load(f)
+
+    images = ann_data["images"]
+    annotations = ann_data["annotations"]
+
+    
+    
+    a = True
+    img_iterator = 0
+    imgs_len = len(images)
+    
+    while(a):
+        
+        objects = {}
+
+        max_iter = min(img_iterator+nframes, imgs_len)
+        
+        a = img_iterator+nframes < imgs_len
+
+        for idx in range(img_iterator, max_iter):
+
+            im_ann = annotations[idx]["segments_info"]
+
+            for obj in im_ann:
+                if obj["isthing"]:
+                    obj_id = obj["id"]
+                    score = obj["score"]
+                    category_id = obj["category_id"]
+                    cat_name = obj["cat_name"]
+
+                    if str(obj_id) not in objects.keys():
+                        new_obj = {"{}".format(str(obj_id)): {
+                            "id": obj_id,
+                            "scores": [score],
+                            "cat_ids": [category_id],
+                            "cat_names": [cat_name]
+                        }}
+                        objects.update(new_obj)
+                    else:
+                        objects[str(obj_id)]["scores"].append(score)
+                        objects[str(obj_id)]["cat_ids"].append(category_id)
+                        objects[str(obj_id)]["cat_names"].append(cat_name)
+        
+            
+
+   
+
+        # find max
+
+        for obj_id in objects.keys():
+
+            scores = objects[obj_id]["scores"]
+            cat_ids = objects[obj_id]["cat_ids"]
+            cat_names = objects[obj_id]["cat_names"]
+
+            max_score = max(scores)
+            max_score_idx = scores.index(max_score)
+
+            max_score_cat_id = cat_ids[max_score_idx]
+            max_score_cat_name = cat_names[max_score_idx]
+
+            max_obj = {"max_score": max_score,
+                    "max_cat_name": max_score_cat_name, "max_cat_id": max_score_cat_id}
+
+            objects[obj_id].update(max_obj)
+
+        # print(objects)
+        # update json
+        for idx in range(img_iterator, max_iter):
+
+            im_ann = annotations[idx]["segments_info"]
+
+            for ind, obj in enumerate(im_ann):
+                if obj["isthing"]:
+                    obj_id = obj["id"]
+
+                    # get max
+                    max_score = objects[str(obj_id)]["max_score"]
+                    max_cat_name = objects[str(obj_id)]["max_cat_name"]
+                    max_cat_id = objects[str(obj_id)]["max_cat_id"]
+
+                    annotations[idx]["segments_info"][ind] = {**annotations[idx]["segments_info"][ind],
+                                                            "score": max_score,
+                                                            "cat_name": max_cat_name,
+                                                            "category_id": max_cat_id}
+        img_iterator = img_iterator + nframes - 1
+        
+    post_process_res = {**ann_data, "annotations": annotations}
+    with open(out_json, 'w') as res_file:
+        json.dump(post_process_res, res_file)
     
     
 
@@ -265,30 +360,30 @@ def draw_tracks(post_process_json, root_folder, out_folder, axis_scale):
 
 
 
-filename = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_no_recycle_show_unmatched_no_box/pred.json"
-out_filename = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_no_recycle_show_unmatched_no_box/pred_post_process.json"
+filename = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_recycle_show_unmatched_test/pred.json"
+out_filename = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_recycle_show_unmatched_test/pred_post_process_recycle.json"
 
 res_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", filename)
 
 out_json = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", out_filename)
 
-post_process(res_file, out_json)
+post_process_nframes(res_file, out_json, nframes=5)
 
 
 
-root_folder = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_no_recycle_show_unmatched_no_box_vis"
+# root_folder = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_no_recycle_show_unmatched_no_box_vis"
 
-root_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", root_folder)
+# root_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", root_folder)
 
-out_folder = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_no_recycle_show_unmatched_no_box_post_process_vis"
+# out_folder = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_no_recycle_show_unmatched_no_box_post_process_vis"
 
-out_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", out_folder)
+# out_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", out_folder)
 
 
-redraw_boxes(out_json, root_folder, out_folder)
+# redraw_boxes(out_json, root_folder, out_folder)
 
-# print(out_json)
-axis_scale = 10
-out_folder = os.path.join(out_folder, "tracks_{}".format(axis_scale))
+# # print(out_json)
+# axis_scale = 10
+# out_folder = os.path.join(out_folder, "tracks_{}".format(axis_scale))
 
-draw_tracks(out_json, root_folder, out_folder, axis_scale)
+# draw_tracks(out_json, root_folder, out_folder, axis_scale)

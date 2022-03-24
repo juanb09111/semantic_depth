@@ -293,6 +293,7 @@ def panoptic_fusion(preds, all_categories, stuff_categories, thing_categories, d
         labels = preds[i]["labels"]
         scores = preds[i]["scores"]
         boxes = preds[i]["boxes"]
+        masks = preds[i]["masks"]
         
         for cat_idx in stuff_cat_idx:
             ids_label_map.append((cat_idx, cat_idx, {"isthing": False}))
@@ -327,7 +328,7 @@ def panoptic_fusion(preds, all_categories, stuff_categories, thing_categories, d
 
                     inter_pred = torch.where(inter_pred == stuff_layers_len + idx, obj_id, inter_pred)
                     
-                    ids_label_map.append((obj_id, labels[idx], {"isthing": True, "score": scores[idx], "bbox": boxes[idx]}))
+                    ids_label_map.append((obj_id, labels[idx], {"isthing": True, "score": scores[idx], "bbox": boxes[idx], "masks": masks[idx]}))
 
             # Semantic predictions
             sem_pred = torch.argmax(sem_logits, dim=0)

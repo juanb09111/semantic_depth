@@ -1,5 +1,4 @@
 # %%
-
 import os
 import os.path
 import numpy as np
@@ -189,10 +188,12 @@ def get_ann_obj(canvas, ids_label_map, all_categories, thing_categories):
     # print(ids_label_map)
     obj_arr = []
     unique_val, counts = torch.unique(canvas, return_counts=True)
-    # print(unique_val, counts, ids_label_map)
+    # print(len(unique_val))
+    vals = []
     for idx, val in enumerate(unique_val):
 
         if val != 0:
+
             id_2_label = list(filter(lambda a: a[0] == val, ids_label_map))[0]
 
             if id_2_label[2]["isthing"]:
@@ -208,6 +209,7 @@ def get_ann_obj(canvas, ids_label_map, all_categories, thing_categories):
 
                 score = id_2_label[2]["score"].item()
                 bbox = id_2_label[2]["bbox"].cpu().numpy().tolist()
+                vals.append(val)
             else:
                 category_id = id_2_label[1]
                 cat = list(filter(lambda a: a["id"] == category_id, all_categories))[0]
@@ -226,6 +228,7 @@ def get_ann_obj(canvas, ids_label_map, all_categories, thing_categories):
             }
             # print(obj)
             obj_arr.append(obj)
+    # print(len(vals))
 
     return obj_arr
 
@@ -395,6 +398,8 @@ def inference_panoptic(model, data_loader_val, args):
             #     return frame, summary_batch, sorted_preds
             # else:
             # TODO: generalize for a batch
+
+            # print("ids:",  len(ids)+ len(unmatched_ids))
             im = apply_panoptic_mask_gpu(imgs[0], canvas).cpu().permute(1, 2, 0).numpy()
 
             # Save results

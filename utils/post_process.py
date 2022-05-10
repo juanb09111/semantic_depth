@@ -222,7 +222,7 @@ def redraw_boxes(post_process_json, root_folder, out_folder):
         for obj in im_ann:
             if obj["isthing"]:
                 obj_id = obj["id"]
-                cat_name = obj["max_cat_name"]
+                cat_name = obj["cat_name"]
                 bbox = obj["bbox"]
 
                 x1, y1, x2, y2 = bbox
@@ -301,7 +301,7 @@ def draw_tracks(post_process_json, root_folder, out_folder, axis_scale):
                 
                 obj_id = obj["id"]
                 bbox = obj["bbox"]
-                cat_name = obj["max_cat_name"]
+                cat_name = obj["cat_name"]
 
                 x1, y1, x2, y2 = bbox
                 x_delta = x2 - x1
@@ -360,30 +360,44 @@ def draw_tracks(post_process_json, root_folder, out_folder, axis_scale):
 
 
 
-filename = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_recycle_show_unmatched_test/pred.json"
-out_filename = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_recycle_show_unmatched_test/pred_post_process_recycle.json"
+# filename = "results/ObjTrck_improve3/inference_PanopticSeg_supercat_reverse_15frames_memory_recycle_show_unmatched_rlof/pred.json"
+# out_filename = "results/ObjTrck_improve3/inference_PanopticSeg_supercat_reverse_15frames_memory_recycle_show_unmatched_rlof/pred_pst_process_recycle.json"
+
+# filename = "results/ObjTrck_improve3/inference_PanopticSeg_supercat_reverse_15frames_memory_recycle_show_unmatched_farneback/pred.json"
+# out_filename = "results/ObjTrck_improve3/inference_PanopticSeg_supercat_reverse_15frames_memory_recycle_show_unmatched_farneback/pred_post_process_recycle.json"
+
+filename = "results/ObjTrck_improve3/inference_PanopticSeg_supercat_reverse_15frames_memory_recycle_show_unmatched_lucaskanade_dense/pred.json"
+out_filename = "results/ObjTrck_improve3/inference_PanopticSeg_supercat_reverse_15frames_memory_recycle_show_unmatched_lucaskanade_dense/pred_post_process_recycle.json"
+
 
 res_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", filename)
 
 out_json = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", out_filename)
 
-post_process_nframes(res_file, out_json, nframes=5)
+# post_process_nframes(res_file, out_json, nframes=5)
 
 
 
-# root_folder = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_no_recycle_show_unmatched_no_box_vis"
+root_folder = "results/ObjTrck_improve3/inference_PanopticSeg_supercat_reverse_15frames_memory_recycle_show_unmatched_rlof_vis"
 
-# root_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", root_folder)
+root_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", root_folder)
 
-# out_folder = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_no_recycle_show_unmatched_no_box_post_process_vis"
+out_folder = "results/ObjTrck_improve3/inference_PanopticSeg_supercat_reverse_15frames_memory_recycle_show_unmatched_rlof_vis_post_process_vis"
 
-# out_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", out_folder)
+out_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", out_folder)
 
 
 # redraw_boxes(out_json, root_folder, out_folder)
 
-# # print(out_json)
-# axis_scale = 10
-# out_folder = os.path.join(out_folder, "tracks_{}".format(axis_scale))
+# # # print(out_json)
+# root_folder = "results/ObjTrck_improve3/inference_PanopticSeg_supercat_reverse_15frames_memory_recycle_show_unmatched_rlof_vis"
+# root_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", root_folder)
 
-# draw_tracks(out_json, root_folder, out_folder, axis_scale)
+# out_folder = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_no_recycle_show_unmatched_no_box_post_process_vis"
+# out_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", out_folder)
+
+
+axis_scale = 10
+out_folder = os.path.join(out_folder, "tracks_{}".format(axis_scale))
+
+draw_tracks(out_json, root_folder, out_folder, axis_scale)

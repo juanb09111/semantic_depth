@@ -2,6 +2,7 @@
 import os
 import os.path
 import sys
+import torch
 import torch.multiprocessing as mp
 from argparse import ArgumentParser
 from inference_scripts import inference_depth_completion
@@ -41,6 +42,7 @@ if __name__ == "__main__":
     parser.add_argument('--categories_json', type=str, required=True, help="Categories, COCO format json file. No annotations required, categories only.")
     parser.add_argument('--dst', type=str, required=True, help="Output folder")
     parser.add_argument('--data_source', type=str, default=None, help="Pytorch Dataloader. If None dataloader is required")
+    parser.add_argument('--algorithm', type=str, default="rlof", help="algorithm used for calculating flow")
  
    
 
@@ -68,5 +70,6 @@ if __name__ == "__main__":
     os.environ['MASTER_PORT'] = '12355'
     os.environ['WORLD_SIZE'] = str(args.world_size)
     # nprocs: number of process which is equal to args.ngpu here
+    torch.cuda.empty_cache()
     mp.spawn(inference_loop, nprocs=args.ngpus, args=(args,))
 

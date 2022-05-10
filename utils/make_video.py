@@ -17,6 +17,7 @@ images = []
 for infile in sorted(glob.glob('{}/*.png'.format(data_dir))):
     images.append(os.path.basename(infile))
 
+# images.reverse()
 
 frame = cv2.imread(os.path.join(data_dir, images[0]))
 height, width, layers = frame.shape

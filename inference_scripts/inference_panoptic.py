@@ -262,7 +262,7 @@ def inference_panoptic(model, data_loader_val, args):
     # for images, _, _, _, _, _, _, _, basename in data_loader_val:
     for images, basename, img_filename in data_loader_val:
 
-        
+        # print(basename[0])
         new_img_filename = img_filename[0]
         # segments_info = []
         imgs = list(img for img in images)
@@ -296,6 +296,7 @@ def inference_panoptic(model, data_loader_val, args):
                     sorted_preds[0]["scores"],
                     args.super_cat_indices,
                     iou_threshold,
+                    args.algorithm,
                     args.gpu,
                 )
             else:
@@ -312,6 +313,7 @@ def inference_panoptic(model, data_loader_val, args):
                     sorted_preds[0]["scores"],
                     args.super_cat_indices,
                     iou_threshold,
+                    args.algorithm,
                     args.gpu,
                 )
 
@@ -410,7 +412,7 @@ def inference_panoptic(model, data_loader_val, args):
             save_mask(canvas, basename[0], dst, args)
 
             # Visualize results
-            save_fig(im, basename[0], summary_batch[0], dst, boxes, labels, ids, unmatched_boxes, unmatched_labels, unmatched_ids, args, draw_boxes=False)
+            save_fig(im, basename[0], summary_batch[0], dst, boxes, labels, ids, unmatched_boxes, unmatched_labels, unmatched_ids, args, draw_boxes=True)
 
             prev_img_filename = img_filename[0]
 

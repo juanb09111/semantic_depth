@@ -5,6 +5,7 @@ import numpy as np
 import numba
 from numba import jit, cuda
 from .lucas_kanade import lucas_kanade_per_mask
+from .farneback import cal_flow
 
 start = config_kitti.NUM_STUFF_CLASSES + config_kitti.MAX_DETECTIONS
 stop = start + config_kitti.MAX_DETECTIONS * (config_kitti.NUM_FRAMES + 2)
@@ -119,6 +120,7 @@ def get_tracked_objects(
     new_scores,
     super_cat_indices,
     iou_threshold,
+    algorithm,
     device,
 ):
 
@@ -169,11 +171,20 @@ def get_tracked_objects(
 
         # print("finding matches from frame {}.......".format(n))
         # lukas kanade, move all of previous unmatched detections to the latest frame
+        # trk_ids_dict["{}".format(n)]["unmatched"]["boxes"], trk_ids_dict[
+        #     "{}".format(n)]["unmatched"]["masks"] = lucas_kanade_per_mask(
+        #         prev_fname, new_fname,
+        #         trk_ids_dict["{}".format(n)]["unmatched"]["masks"],
+        #         trk_ids_dict["{}".format(n)]["unmatched"]["boxes"], 0.5)
+
+        # TODO: try other algorithms
         trk_ids_dict["{}".format(n)]["unmatched"]["boxes"], trk_ids_dict[
-            "{}".format(n)]["unmatched"]["masks"] = lucas_kanade_per_mask(
-                prev_fname, new_fname,
+            "{}".format(n)]["unmatched"]["masks"] = cal_flow(
+                algorithm,
+                prev_fname,
+                new_fname,
                 trk_ids_dict["{}".format(n)]["unmatched"]["masks"],
-                trk_ids_dict["{}".format(n)]["unmatched"]["boxes"], 0.5)
+                trk_ids_dict["{}".format(n)]["unmatched"]["boxes"])
         # end lukas kanade
         # TODO: Check that order is kept after lk.
         unmatched = trk_ids_dict["{}".format(n)]["unmatched"]
@@ -183,7 +194,7 @@ def get_tracked_objects(
         unmatched_ids = unmatched["ids"]  # unmatched ids from previous frames
 
         # print("unmatched ids from frame {} (before): {}".format(
-            # n, unmatched_ids))
+        # n, unmatched_ids))
 
         # calculate only if there are unmatched items
         if len(unmatched_ids) > 0 and len(unmatched_indices) > 0:
@@ -261,7 +272,8 @@ def get_tracked_objects(
                                        device=device,
                                        dtype=torch.long)
                 # print("indices to keep (unmatched from prev frame): {}".format(indices))
-                trk_ids_dict["{}".format(n)]["unmatched"][key] = torch.index_select(arr, 0, indices)
+                trk_ids_dict["{}".format(n)]["unmatched"][key] = torch.index_select(
+                    arr, 0, indices)
 
             # print("unmatched ids from frame {} - after: {}".format(
                 # n, trk_ids_dict["{}".format(n)]["unmatched"]["ids"]))
@@ -286,11 +298,13 @@ def get_tracked_objects(
     if current_frame >= config_kitti.NUM_FRAMES + 1:
         for n in range(config_kitti.NUM_FRAMES - 1):
             # update ids_arr
-            trk_ids_dict["{}".format(n + 1)]["ids_arr"] = trk_ids_dict["{}".format(n + 2)]["ids_arr"]
+            trk_ids_dict["{}".format(
+                n + 1)]["ids_arr"] = trk_ids_dict["{}".format(n + 2)]["ids_arr"]
 
             # update unmatched
             for name in ["boxes", "masks", "labels", "ids", "scores"]:
-                trk_ids_dict["{}".format(n+1)]["unmatched"][name] = trk_ids_dict["{}".format(n+2)]["unmatched"][name]
+                trk_ids_dict["{}".format(
+                    n+1)]["unmatched"][name] = trk_ids_dict["{}".format(n+2)]["unmatched"][name]
 
             active_ids_arr = [
                 *active_ids_arr,
@@ -324,7 +338,7 @@ def get_tracked_objects(
             ]
 
         unmatched_limit = current_frame
-    
+
     # Update trk_ids_dict["active"]
     active_ids_arr = torch.unique(torch.tensor(active_ids_arr))
     active_obj = {"active": active_ids_arr}
@@ -371,9 +385,6 @@ def get_tracked_objects(
         }
         # print("untracked to show", obj["ids"])
         return new_ids, obj
-    
+
     else:
         return new_ids, None
-    
-
-

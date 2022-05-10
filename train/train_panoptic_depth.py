@@ -71,18 +71,19 @@ def __update_model_wrapper(model, optimizer, device, rank, writer):
         i = trainer_engine.state.iteration
 
         if i <= 50:
-            losses = sum(loss[1] for loss in loss_dict.iteritems() if loss[0] is "depth_loss")
+            losses = sum(loss[1] for loss in loss_dict.items() if loss[0] is "depth_loss")
 
         if i <= 100 and i > 50:
-            losses = sum(loss[1] for loss in loss_dict.iteritems() if loss[0] is "semantic_loss")
+            losses = sum(loss[1] for loss in loss_dict.items() if loss[0] is "semantic_loss")
 
         if i <= 150 and i > 100:
-            losses = sum(loss[1] for loss in loss_dict.iteritems() if loss[0] not in ["semantic_loss", "depth_loss"] )
+            losses = sum(loss[1] for loss in loss_dict.items() if loss[0] not in ["semantic_loss", "depth_loss"] )
 
         if i <= 200 and i > 150:
             losses = sum(loss for loss in loss_dict.values())
 
         if rank == 0:
+            # print(losses)
             writer.add_scalar("Loss/train/iteration", losses, i)
 
             for key in loss_dict.keys():

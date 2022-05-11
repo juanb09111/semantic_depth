@@ -11,9 +11,9 @@ BACKBONE_DEPTHWISE_CONV = False
 PRE_TRAINED_BACKBONE = True
 
 RESIZE = 0.5
-CROP_OUTPUT_SIZE = (200, 700)
-MIN_SIZE = 200  
-MAX_SIZE = 700 
+CROP_OUTPUT_SIZE = (1080, 1920)
+MIN_SIZE = 1080  
+MAX_SIZE = 1920 
 
 # for k-nn
 K_NUMBER = 9
@@ -25,7 +25,7 @@ MAX_DEPTH = 50 # distance in meters
 LOSS_ALPHA = 0.8
 
 
-DATA = "data/"
+DATA = "data_jd_2022/"
 RGB_DATA = "vkitti_2.0.3_rgb"
 INSTANCE_SEGMENTATION_DATA = "vkitti_2.0.3_instanceSegmentation"
 SEMANTIC_SEGMENTATION_DATA = "vkitti_2.0.3_classSegmentation" 
@@ -35,14 +35,14 @@ SEMANTIC_SEGMENTATION_DATA_CLASS = "semseg_bin"
 MAX_EPOCHS = 100
 
 # MAX_TRAINING_SAMPLES = 100
-MAX_TRAINING_SAMPLES = 50
+MAX_TRAINING_SAMPLES = None
 VAL_SIZE = 0.20 #PERCENTAGE
 # If USE_PREEXISTING_DATA_LOADERS is True new data_loaders will not be written
 USE_PREEXISTING_DATA_LOADERS = False
 DATA_LOADER_TRAIN_FILANME = "tmp/data_loaders/vkitti_data_loader_train_625_samples.pth"
 DATA_LOADER_VAL_FILENAME = "tmp/data_loaders/vkitti_data_loader_val_625_samples.pth"
 
-COCO_ANN = "kitti2coco_ann_crop.json"
+COCO_ANN = "COCO_ann_loc_03_2022.json"
 
 # --------EVALUATION---------------
 MODEL_WEIGHTS_FILENAME = "tmp/models/EfusionPS_V3_depth_loss_0.6401694336146243.pth"

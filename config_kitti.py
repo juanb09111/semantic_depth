@@ -3,8 +3,8 @@
 
 BACKBONE = "resnet50" # This is the only one available at the moment
 BACKBONE_OUT_CHANNELS = 256
-NUM_THING_CLASSES = 3 #excluding background
-NUM_STUFF_CLASSES = 11 #excluding background
+NUM_THING_CLASSES = 40 #excluding background
+NUM_STUFF_CLASSES = 2 #excluding background
 
 SEMANTIC_HEAD_DEPTHWISE_CONV = False
 BACKBONE_DEPTHWISE_CONV = False
@@ -54,19 +54,20 @@ IOU_TYPES = ["bbox", "segm"]
 
 
 # # Object tracking
-INFERENCE_DATA = "data/"
+# INFERENCE_DATA = "data/"
 # INFERENCE_DATA = "data_vkitti_video"
-OBJECT_TRACKING = False
+OBJECT_TRACKING = True
+SUPER_CAT = ["Spruce trunk", "Pine trunk", "Birch trunk", "Tree trunk"]
 # COCO_ANN_INFERNECE = "kitti_video_2_coco_ordered.json"
-COCO_ANN_INFERNECE = "kitti2coco_ann_crop.json"
-OUTPUT_FOLDER = "Panoptic_seg_TRAIN_crop_120s_200_1300"
+# COCO_ANN_INFERNECE = "kitti2coco_ann_crop.json"
+# OUTPUT_FOLDER = "Panoptic_seg_TRAIN_crop_120s_200_1300"
 
 MAX_DETECTIONS = 50 # Maximum number of tracked objects
-NUM_FRAMES = 5 # Number of frames before recycling the ids
+NUM_FRAMES = 15 # Number of frames before recycling the ids
 
 # Make video
 
 # VIDEO_CONTAINER_FOLDER = "data_vkitti_video/vkitti_2.0.3_Panoptic/Scene20/morning/frames/rgb/Camera_0"
-VIDEO_CONTAINER_FOLDER = "results/Panoptic_seg_rt"
-VIDEO_OUTOUT_FILENAME = "Panoptic_seg_rt.avi"
+VIDEO_CONTAINER_FOLDER = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_no_recycle_show_unmatched_no_box_post_process_vis/overlay_tracks"
+VIDEO_OUTOUT_FILENAME = "results/ObjTrck_improve/inference_PanopticSeg_supercat_reverse_5frames_memory_no_recycle_show_unmatched_no_box_post_process_vis/overlay_tracks.avi"
 FPS = 5

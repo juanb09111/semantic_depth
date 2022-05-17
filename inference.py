@@ -2,6 +2,7 @@
 import os
 import os.path
 import sys
+import torch
 import torch.multiprocessing as mp
 from argparse import ArgumentParser
 from inference_scripts import inference_depth_completion
@@ -10,6 +11,7 @@ from inference_scripts import inference_panoptic
 # from inference_scripts import inference_instance
 from inference_scripts import inference_semseg_depth
 from inference_scripts import inference_semseg_net
+from inference_scripts import inference_instance
 
 from models import MODELS
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
@@ -24,6 +26,8 @@ def get_inference_loop(model_name):
     #     return inference_instance.inference
     if model_name == "PanopticDepth":
         return inference_panoptic.inference
+    if model_name == "MaskRcnn":
+        return inference_instance.inference
           
 
 if __name__ == "__main__":
@@ -44,6 +48,7 @@ if __name__ == "__main__":
     parser.add_argument('--categories_json', type=str, required=True, help="Categories, COCO format json file. No annotations required, categories only.")
     parser.add_argument('--dst', type=str, required=True, help="Output folder")
     parser.add_argument('--data_source', type=str, default=None, help="Pytorch Dataloader. If None dataloader is required")
+    parser.add_argument('--algorithm', type=str, default="rlof", help="algorithm used for calculating flow")
  
    
 
@@ -71,5 +76,6 @@ if __name__ == "__main__":
     os.environ['MASTER_PORT'] = '12355'
     os.environ['WORLD_SIZE'] = str(args.world_size)
     # nprocs: number of process which is equal to args.ngpu here
+    torch.cuda.empty_cache()
     mp.spawn(inference_loop, nprocs=args.ngpus, args=(args,))
 

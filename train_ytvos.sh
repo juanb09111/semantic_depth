@@ -5,8 +5,8 @@
 #SBATCH -J JP_JOB
 #
 # Let's redirect job's out some other file than default slurm-%jobid-out
-#SBATCH --output=res/res_semseg_depth_%a.txt
-#SBATCH --error=res/err_semseg_depth_%a.txt
+#SBATCH --output=res/res_ytvos_%a.txt
+#SBATCH --error=res/err_ytvos_%a.txt
 #
 #!/bin/bash
 #SBATCH --job-name=lagosben
@@ -26,9 +26,9 @@
 
 #module load matlab
 #module lodad python
-module load CUDA/9.0
-# conda activate pynoptorch
-source activate pynoptorch
+module load gcc/7.4.0 cuda/9.2.88 
+# module load pytorch/1.7.0
+module load pytorch/1.7
 
 
 
@@ -49,16 +49,18 @@ echo "r$SLURM_NODEID master: $MASTER_ADDR"
 
 echo "r$SLURM_NODEID Launching python script"
 
-#inference params
+#train params
 MODEL_NAME=$1
 BATCH_SIZE=$2
-CHECKPOINT=$3
-CAT_JSON=$4
-ALGORITHM=$5
-DST=$6
-DS=$7
+ANN_FILE=$3
+DATA=$4
+EPOCHS=$5
+DATASET=${6:-"vkitti"}
+N_SAMPLES=${7:-""}
+CHECKPOINT=${8:-""}
+LR=${9:-0.00025}
 # Finally run your job. Here's an example of a python script.
 
 # python eval_coco.py $SLURM_TASK_ARRAY_ID
 # python train_efusion_vkitti.py $SLURM_TASK_ARRAY_ID
-python inference.py --model_name=$MODEL_NAME --batch_size=$BATCH_SIZE --checkpoint=$CHECKPOINT --categories_json=$CAT_JSON --algorithm=$ALGORITHM --dst=$DST --data_source=$DS --nodes=1 --ngpus=1 --ip_adress $ip1 $SLURM_TASK_ARRAY_ID
+python train.py --model_name=$MODEL_NAME --batch_size=$BATCH_SIZE --checkpoint=$CHECKPOINT --dataset=$DATASET --ann_file=$ANN_FILE --data=$DATA --n_samples=$N_SAMPLES --epochs=$EPOCHS --lr=$LR --nodes=1 --ngpus=1 --ip_adress $ip1 $SLURM_TASK_ARRAY_ID

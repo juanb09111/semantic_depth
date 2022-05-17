@@ -1,7 +1,6 @@
 import os.path
 import sys
 from ignite.engine import Events, Engine
-
 import torch
 import torch.nn as nn
 
@@ -84,6 +83,7 @@ def __update_model_wrapper(model, optimizer, device, rank, writer):
             losses = sum(loss for loss in loss_dict.values())
 
         if rank == 0:
+            # print(losses)
             writer.add_scalar("Loss/train/iteration", losses, i)
 
             for key in loss_dict.keys():

@@ -2,13 +2,13 @@ import os
 from torch.utils.tensorboard import SummaryWriter
 
 
-writer = SummaryWriter(log_dir="runs/Panoptic_crop_120s_200_1300")
+writer = SummaryWriter(log_dir="runs/narvi/Panoptic_032022_shuffled_lr=0.0016")
 
 
 # filename = "tmp/res/training_results_effnet_no_depthwise_30_01.txt" 
 # filename = "tmp/res/training_results_1.0_data_agmentation.txt" 
 # filename = "tmp/res/training_results_600.txt" 
-filename = "tmp/res/eval_results.txt"
+filename = "tmp/res/narvi/PANOPTIC_SEG_eval_results.txt"
 
 res_file = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", filename))
 

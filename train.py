@@ -16,10 +16,11 @@ from train import train_semseg_depth_v2_loss_sum
 from train import train_panoptic
 from train import train_mask_rcnn
 from train import train_panoptic_depth
+from train import train_mask_rcnn_ytvos
 from models import MODELS
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 
-def get_train_loop(model_name):
+def get_train_loop(model_name, dataset="vkitti"):
     if model_name == "FuseNet":
         return train_fusenet.train
     if model_name == "FuseNet_v2":
@@ -41,7 +42,10 @@ def get_train_loop(model_name):
     if model_name == "PanopticSeg":
         return train_panoptic.train
     if model_name == "MaskRcnn":
-        return train_mask_rcnn.train
+        if dataset == "vkitti":
+            return train_mask_rcnn.train
+        elif dataset == "ytvos":
+            return train_mask_rcnn_ytvos.train
     if model_name == "PanopticDepth":
         return train_panoptic_depth.train
           
@@ -60,16 +64,28 @@ if __name__ == "__main__":
 
     parser.add_argument('--model_name', type=str, required=True, help="Name of the model to train. Look up in models.py")
     parser.add_argument('--batch_size', type=int, required=True, help="Batch size")
+
+    parser.add_argument('--ann_file', type=str, required=True, help="Annotation json file")
+    parser.add_argument('--data', type=str, required=True, help="rgb folder")
+    parser.add_argument('--epochs', type=int, required=True, help="Number of training epochs")
+    
+
+    parser.add_argument('--dataset', type=str, default="vkitti", required=False, help="dataset name")
+    parser.add_argument('--n_samples', default=None, required=False, help="Number of training samples")
+    parser.add_argument('--val_size', default=0.2, type=int, required=False, help="validation set size")
     parser.add_argument('--checkpoint', type=str, default=None, help="Pretrained weights")
 
     args = parser.parse_args()
-    
     if args.checkpoint == "":
         args.checkpoint = None
+    
+    if args.n_samples == "":
+        args.n_samples = None
 
+    print(args)
     if args.model_name not in MODELS:
         raise ValueError("model_name must be one of: ", MODELS)
-    train_loop = get_train_loop(args.model_name)
+    train_loop = get_train_loop(args.model_name, args.dataset)
 
     # Total number of gpus availabe to us.
     args.world_size = args.ngpus * args.nodes

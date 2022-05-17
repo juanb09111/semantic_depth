@@ -23,6 +23,9 @@ KITTI_DATA_LOADER_VAL_FILENAME = "kitti_data_loader_val.pth"
 VKITTI_DATA_LOADER_TRAIN_FILANME = "vkitti_data_loader_train_625_samples_v2.pth"
 VKITTI_DATA_LOADER_VAL_FILENAME = "vkitti_data_loader_val_625_samples_v2.pth"
 
+YTVOS_DATA_LOADER_TRAIN_FILANME = "ytvos_data_loader_train.pth"
+YTVOS_DATA_LOADER_VAL_FILENAME = "ytvos_data_loader_val.pth"
+
 DATA_LOADER_TRAIN_FILANME = "data_loader_train.pth"
 DATA_LOADER_VAL_FILENAME = "data_loader_val.pth"
 

@@ -18,13 +18,15 @@ def get_colors_palete(num_classes):
     colors = [randRGB(i+5) for i in range(num_classes + 1)]
     return colors
 
+
+ids_colors = get_colors_palete(500)
+
 def apply_panoptic_mask_gpu(image, mask):
     
     num_stuff_classes = config_kitti.NUM_STUFF_CLASSES
     max_val = mask.max()
-
+    # print(max_val)
     colors = get_colors_palete(config_kitti.NUM_THING_CLASSES + config_kitti.NUM_STUFF_CLASSES)
-
     for i in range(1, max_val + 1):
         for c in range(3):
 
@@ -34,7 +36,9 @@ def apply_panoptic_mask_gpu(image, mask):
 
             else:
                 alpha = 0.45
-                color = randRGB(i)
+                # color = randRGB(i)
+                color = ids_colors[i]
+                # print(ids_colors[9])
             
             image[c, :, :] = torch.where(mask == i,
                                       image[c, :, :] *
@@ -43,20 +47,20 @@ def apply_panoptic_mask_gpu(image, mask):
     return image
 
 
-def apply_panoptic_mask_gray(image, mask):
+# def apply_panoptic_mask_gray(image, mask):
 
-    num_stuff_classes = config_kitti.NUM_STUFF_CLASSES
-    max_val = mask.max()
-    unique_val = torch.unique(mask)
-    colors = get_colors_palete(config_kitti.NUM_THING_CLASSES + config_kitti.NUM_STUFF_CLASSES)
+#     num_stuff_classes = config_kitti.NUM_STUFF_CLASSES
+#     max_val = mask.max()
+#     unique_val = torch.unique(mask)
+#     colors = get_colors_palete(config_kitti.NUM_THING_CLASSES + config_kitti.NUM_STUFF_CLASSES)
 
-    b_image = torch.zeros_like(image).float()
+#     b_image = torch.zeros_like(image).float()
 
-    for val in unique_val:
-        if val != 0:
-            color = map_to_rgb(val, max_val)
-            print(color)
-            for c in range(3):
-                b_image[c, :, :] = torch.where(mask == val,
-                                            color[c],
-                                            b_image[c, :, :])
+#     for val in unique_val:
+#         if val != 0:
+#             color = map_to_rgb(val, max_val)
+#             print(color)
+#             for c in range(3):
+#                 b_image[c, :, :] = torch.where(mask == val,
+#                                             color[c],
+#                                             b_image[c, :, :])

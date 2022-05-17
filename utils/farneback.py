@@ -3,7 +3,7 @@ import numpy as np
 import os
 import torch
 import temp_variables
-
+from .lucas_kanade import lucas_kanade_per_mask
 import matplotlib.pyplot as plt
 
 
@@ -220,6 +220,13 @@ def cal_flow(algorithm,
             rlof_params, 
             params=[], 
             to_gray=False)
+    elif algorithm == "lk":
+        pred_boxes, pred_masks = lucas_kanade_per_mask(
+            prev_img_fname, 
+            next_image_fname,
+            prev_masks,
+            prev_boxes, 
+            0.5)
     
     return pred_boxes, pred_masks
 

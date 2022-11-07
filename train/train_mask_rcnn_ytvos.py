@@ -201,6 +201,9 @@ def train(gpu, args):
     annotation = os.path.join(os.path.dirname(os.path.abspath(
             __file__)), "..", args.ann_file)
     
+    # valid_annotation = os.path.join(os.path.dirname(os.path.abspath(
+    #         __file__)), "..", "datasets/YouTube/2019/valid_1000.json")
+    
     
     all_categories, _, thing_categories = get_stuff_thing_classes(annotation)
 
@@ -212,6 +215,7 @@ def train(gpu, args):
         args.batch_size,
         imgs_root,
         annotation,
+        valid_annotation=None,
         num_replicas=args.world_size,
         rank=rank,
         split=False,

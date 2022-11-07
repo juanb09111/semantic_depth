@@ -10,7 +10,7 @@ class MaskRCNN(nn.Module):
         super().__init__()
         # min_size, max_size = config_kitti.MIN_SIZE, config_kitti.MAX_SIZE
         # self.mask_rcnn = maskrcnn_resnet50_fpn(num_classes=num_ins_classes + 1, min_size=min_size, max_size=max_size)
-        self.mask_rcnn = maskrcnn_resnet50_fpn(num_classes=num_ins_classes + 1, pretrained_backbone=True)
+        self.mask_rcnn = maskrcnn_resnet50_fpn(num_classes=num_ins_classes + 1, pretrained_backbone=False)
         for module in self.children():
             if self.training:
                 module.training = True

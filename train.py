@@ -21,26 +21,26 @@ from models import MODELS
 # # from ignite.contrib.handlers.param_scheduler import PiecewiseLinear
 
 def get_train_loop(model_name, dataset="vkitti"):
-    if model_name == "FuseNet":
-        return train_fusenet.train
-    if model_name == "FuseNet_v2":
-        return train_fusenet_v2.train
-    if model_name == "SemsegNet":
-        return train_sem_seg_net.train
-    if model_name == "Semseg_Depth":
-        return train_semseg_depth.train
-    if model_name == "Semseg_Depth_v2":
-        return train_semseg_depth_v2.train
-    if model_name == "Semseg_Depth_v3":
-        return train_semseg_depth_v3.train
-    if model_name == "Semseg_Depth_v4":
-        return train_semseg_depth_v4.train
-    if model_name == "SemsegNet_DepthInput":
-        return train_semseg_depth_input.train
-    if model_name == "Semseg_Depth_v2_loss_sum":
-        return train_semseg_depth_v2_loss_sum.train
-    if model_name == "PanopticSeg":
-        return train_panoptic.train
+    # if model_name == "FuseNet":
+    #     return train_fusenet.train
+    # if model_name == "FuseNet_v2":
+    #     return train_fusenet_v2.train
+    # if model_name == "SemsegNet":
+    #     return train_sem_seg_net.train
+    # if model_name == "Semseg_Depth":
+    #     return train_semseg_depth.train
+    # if model_name == "Semseg_Depth_v2":
+    #     return train_semseg_depth_v2.train
+    # if model_name == "Semseg_Depth_v3":
+    #     return train_semseg_depth_v3.train
+    # if model_name == "Semseg_Depth_v4":
+    #     return train_semseg_depth_v4.train
+    # if model_name == "SemsegNet_DepthInput":
+    #     return train_semseg_depth_input.train
+    # if model_name == "Semseg_Depth_v2_loss_sum":
+    #     return train_semseg_depth_v2_loss_sum.train
+    # if model_name == "PanopticSeg":
+    #     return train_panoptic.train
     if model_name == "MaskRcnn":
         if dataset == "vkitti":
             return train_mask_rcnn.train
@@ -74,6 +74,7 @@ if __name__ == "__main__":
     parser.add_argument('--n_samples', default=None, required=False, help="Number of training samples")
     parser.add_argument('--val_size', default=0.2, type=int, required=False, help="validation set size")
     parser.add_argument('--checkpoint', type=str, default=None, help="Pretrained weights")
+    parser.add_argument('--lr', type=float, default=0.0025, help="learning rate")
 
     args = parser.parse_args()
     if args.checkpoint == "":

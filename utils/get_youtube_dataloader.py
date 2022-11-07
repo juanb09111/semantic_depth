@@ -50,6 +50,7 @@ class youtubeDataset(torch.utils.data.Dataset):
     def __init__(self,
                  imgs_root,
                  annotation,
+                 valid_annotation=None,
                  transforms=None,
                  n_samples=None,
                  shuffle=True):
@@ -58,8 +59,18 @@ class youtubeDataset(torch.utils.data.Dataset):
         self.imgs_root = imgs_root
         self.ytvos = YTVOS(annotation)
 
+
         self.vidIds = self.ytvos.getVidIds()
         self.videos = self.ytvos.loadVids(ids=self.vidIds)
+
+        if valid_annotation != None:
+            self.ytvos_valid = YTVOS(valid_annotation)
+            self.vidIds_valid = self.ytvos_valid.getVidIds()
+            self.videos_valid = self.ytvos_valid.loadVids(ids=self.vidIds_valid)
+
+            self.videos = list(filter(lambda video: video not in self.videos_valid, self.videos))
+
+
         self.frames = []
         for video in self.videos:
             file_names = video["file_names"]
@@ -162,13 +173,13 @@ data_transform = transforms.Compose([
     ])
 
 
-def get_datasets(imgs_root, annotation=None, split=False, val_size=0.20, n_samples=None, shuffle=True, is_test_set=False, reverse=False):
+def get_datasets(imgs_root, annotation=None, valid_annotation=None, split=False, val_size=0.20, n_samples=None, shuffle=True, is_test_set=False, reverse=False):
 
     if is_test_set:
         yt_test_dataset = youtubeTestDataset(imgs_root, data_transform)
         return yt_test_dataset
 
-    ytdataset = youtubeDataset(imgs_root, annotation, transforms=data_transform, shuffle=shuffle, n_samples=n_samples)
+    ytdataset = youtubeDataset(imgs_root, annotation, valid_annotation=valid_annotation, transforms=data_transform, shuffle=shuffle, n_samples=n_samples)
 
     if split:
         if val_size >= 1:
@@ -198,6 +209,7 @@ def get_dataloaders(batch_size,
                     annotation,
                     num_replicas,
                     rank,
+                    valid_annotation=None,
                     split=False,
                     val_size=0.20,
                     n_samples=None,
@@ -208,7 +220,7 @@ def get_dataloaders(batch_size,
 
     if split:
         train_set, val_set = get_datasets(
-            imgs_root, annotation, split=True, val_size=val_size, n_samples=n_samples, shuffle=shuffle, is_test_set=is_test_set, reverse=reverse)
+            imgs_root, annotation, valid_annotation=valid_annotation, split=True, val_size=val_size, n_samples=n_samples, shuffle=shuffle, is_test_set=is_test_set, reverse=reverse)
 
         train_sampler = None
         val_sampler = None
@@ -236,7 +248,7 @@ def get_dataloaders(batch_size,
         return data_loader_train, data_loader_val
 
     else:
-        dataset = get_datasets(imgs_root, annotation, split=False, val_size=val_size, n_samples=n_samples, shuffle=shuffle, is_test_set=is_test_set, reverse=reverse)
+        dataset = get_datasets(imgs_root, annotation, valid_annotation=valid_annotation, split=False, val_size=val_size, n_samples=n_samples, shuffle=shuffle, is_test_set=is_test_set, reverse=reverse)
 
         data_loader = torch.utils.data.DataLoader(dataset,
                                                   batch_size=batch_size,
